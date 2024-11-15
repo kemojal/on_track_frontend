@@ -38,7 +38,7 @@ export function AppSidebar() {
   const { setTheme } = useTheme();
 
   const navigationItems = [
-    { href: "/", label: "Home", icon: Home },
+    { href: "/home", label: "Home", icon: Home },
     { href: "/analytics", label: "Analytics", icon: BarChart2 },
     { href: "/calendar", label: "Calendar", icon: Calendar },
     { href: "/settings", label: "Settings", icon: Settings },

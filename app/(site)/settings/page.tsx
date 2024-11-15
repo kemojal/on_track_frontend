@@ -1,57 +1,14 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import { useTheme } from "next-themes";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import {
-  Moon,
-  Sun,
-  Bell,
-  Mail,
-  Smartphone,
-  Shield,
-  Calendar,
-  Clock,
-  Globe,
-  Award,
-  ChevronRight,
-  CloudIcon,
-  CreditCard,
-} from "lucide-react";
 // tobe moved
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 //
-import { Separator } from "@/components/ui/separator";
-import { useHabitStore } from "@/lib/store";
-import { useToast } from "@/hooks/use-toast";
-import PricingCard from "@/components/PricingCard";
-import { NotificationCardItem } from "@/components/NotificationCardItem";
 import NotificationCard from "@/components/NotificationCard";
 import TrackingCard from "@/components/TrackingCard";
 import PremiumFeaturesCard from "@/components/PremiumFeaturesCard";
 import DataPrivacyCard from "@/components/DataPrivacyCard";
+import AppearanceCard from "@/components/AppearanceCard";
 
 // Time zones array (simplified for example)
 const timeZones = [
@@ -129,8 +86,8 @@ export default function SettingsPage() {
           </p>
         </div>
         <Button
-          variant="premium"
-          className="bg-gradient-1 text-white hover:opacity-90"
+        //   variant="premium"
+          className="bg-gradient-1 text-white hover:opacity-90 border-primary text-primary font-bold hover:text-white border-[1px]"
         >
           Upgrade to Pro
         </Button>
@@ -138,7 +95,7 @@ export default function SettingsPage() {
 
       <div className="grid gap-6">
         {/* Appearance */}
-       <NotificationCard/>
+       <AppearanceCard/>
 
         {/* Notifications */}
         <NotificationCard />
