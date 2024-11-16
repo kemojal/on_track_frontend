@@ -7,7 +7,10 @@ interface PaymentStatusBadgeProps {
   className?: string;
 }
 
-export function PaymentStatusBadge({ status, className }: PaymentStatusBadgeProps) {
+export function PaymentStatusBadge({
+  status,
+  className,
+}: PaymentStatusBadgeProps) {
   const statusConfig = {
     paid: {
       color: "bg-emerald-500",
@@ -24,9 +27,10 @@ export function PaymentStatusBadge({ status, className }: PaymentStatusBadgeProp
       text: "text-red-500",
       label: "Failed",
     },
-  };
+  } as const;
 
-  const config = statusConfig[status];
+  // Add type safety and default handling
+  const config = statusConfig[status] || statusConfig.failed;
 
   return (
     <div className={cn("flex items-center gap-1.5", className)}>

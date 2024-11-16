@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { InvoiceReceipt } from "./InvoiceReceipt";
+import { CreditCard } from "lucide-react";
 
 interface Payment {
   id: string;

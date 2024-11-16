@@ -11,7 +11,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useHabitStore, useBillingStore } from "@/lib/store";
-import { Shield, Sparkles } from "lucide-react";
+import { Check, Shield, Sparkles } from "lucide-react";
 import { PaymentHistoryCard } from "@/components/billings/PaymentHistoryCard";
 import { useState, useEffect } from "react";
 
@@ -176,6 +176,8 @@ export default function BillingPage() {
         </Card>
 
         <PaymentHistoryCard />
+
+       
       </div>
     </div>
   );
