@@ -202,9 +202,12 @@ const StatsSection = ({ selectedHabit }: { selectedHabit: Habit | null }) => {
           <div className="text-xs text-muted-foreground">Last 7 days</div>
         </div>
 
-        <div className="h-48 bg-black/5 dark:bg-white/5 rounded-xl p-4 backdrop-blur-sm">
+        <div className="h-48 bg-black/5 dark:bg-white/5 rounded-xl p-4 backdrop-blur-sm w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyData}>
+            <BarChart
+              data={weeklyData}
+              margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+            >
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 12 }}
@@ -253,9 +256,12 @@ const StatsSection = ({ selectedHabit }: { selectedHabit: Habit | null }) => {
           </div>
         </div>
 
-        <div className="h-48 bg-black/5 dark:bg-white/5 rounded-xl p-4 backdrop-blur-sm">
+        <div className="h-48 bg-black/5 dark:bg-white/5 rounded-xl p-4 backdrop-blur-sm w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={hourlyData}>
+            <AreaChart
+              data={hourlyData}
+              margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+            >
               <defs>
                 <linearGradient id="colorProgress" x1="0" y1="0" x2="0" y2="1">
                   <stop
@@ -634,7 +640,10 @@ const TimeTrackingCard = () => {
                     </div>
                     <div className="h-32">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={hourlyProgress}>
+                        <AreaChart
+                          data={hourlyProgress}
+                          margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+                        >
                           <defs>
                             <linearGradient
                               id="colorProgress"
@@ -708,7 +717,7 @@ const TimeTrackingCard = () => {
                   </div>
 
                   {/* Weekly Hourly Progress */}
-                  <div className="space-y-3 rounded-xl bg-black/5 dark:bg-white/5 p-4 backdrop-blur-sm">
+                  <div className="space-y-3 rounded-xl bg-black/5 dark:bg-white/5 p-4 backdrop-blur-sm w-full">
                     {weekDays.map((day, dayIndex) => (
                       <div
                         key={day.toISOString()}
