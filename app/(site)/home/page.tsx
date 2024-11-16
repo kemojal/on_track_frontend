@@ -13,6 +13,7 @@ import {
   Trash2,
   Archive,
   Calendar,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { is } from "date-fns/locale";
+import { TimeTrackingCard } from "@/components/TimeTrackingCard";
 
 // Animation variants
 const containerVariants = {
@@ -116,12 +118,9 @@ export default function Component() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isTimeTrackingOpen, setIsTimeTrackingOpen] = useState(false);
   const dates = getDatesInRange(startDate, 15);
 
-  const toggleTheme = (newTheme) => {
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
 
   return (
     <motion.div
@@ -298,6 +297,15 @@ export default function Component() {
                               className="gap-2 py-3"
                             >
                               <Edit2 className="w-4 h-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditingHabit(habit);
+                                setIsTimeTrackingOpen(true);
+                              }}
+                              className="gap-2 py-3"
+                            >
+                              <Clock className="w-4 h-4" /> Time Tracking
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -627,6 +635,15 @@ export default function Component() {
               revisit it later
             </p>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isTimeTrackingOpen} onOpenChange={setIsTimeTrackingOpen}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Track Time - {editingHabit?.name}</DialogTitle>
+          </DialogHeader>
+          {editingHabit && <TimeTrackingCard habit={editingHabit} />}
         </DialogContent>
       </Dialog>
     </motion.div>
