@@ -20,7 +20,7 @@ interface Habit {
       date: string;
       duration: number; // Duration in minutes
       notes?: string;
-      type?: 'pomodoro' | 'regular';
+      type?: "pomodoro" | "regular";
       completed?: boolean;
     }[];
     target?: {
@@ -57,94 +57,50 @@ interface Habit {
   isPremium?: boolean;
 }
 
+interface TimeSession {
+  id: string;
+  habitId: string;
+  startTime: string;
+  endTime: string;
+  duration: number; // in seconds
+  type: "regular" | "pomodoro";
+  hour: number; // 0-23 for time tracking visualization
+}
+
+interface PomodoroSettings {
+  workDuration: number; // minutes
+  breakDuration: number; // minutes
+  longBreakDuration: number; // minutes
+  sessionsUntilLongBreak: number;
+}
+
 interface TimeTracking {
-  sessions: {
-    id: string;
-    date: string;
-    duration: number;
-    type: "regular" | "pomodoro";
-    phase?: "work" | "break" | "longBreak";
-    notes?: string;
-    completed: boolean;
-    targetMet: boolean;
-  }[];
+  sessions: TimeSession[];
+  pomodoroSettings: PomodoroSettings;
   currentSession?: {
-    startTime: number;
-    elapsedTime: number;
+    startTime: string;
     type: "regular" | "pomodoro";
-    phase?: "work" | "break" | "longBreak";
-    pomodoroCount?: number;
-    isActive: boolean;
-    isPaused: boolean;
-  };
-  pomodoroSettings: {
-    workDuration: number;
-    breakDuration: number;
-    longBreakDuration: number;
-    sessionsUntilLongBreak: number;
-    autoStartBreaks: boolean;
-    autoStartPomodoros: boolean;
-    soundEnabled: boolean;
-    notificationsEnabled: boolean;
-  };
-  streakData: {
-    currentStreak: number;
-    longestStreak: number;
-    lastTrackedDate?: string;
-  };
-  stats: {
-    totalSessions: number;
-    totalTimeSpent: number;
-    completedPomodoros: number;
-    averageSessionLength: number;
   };
 }
 
-interface HabitStore {
+interface HabitState {
   isPro: boolean;
   setIsPro: (isPro: boolean) => void;
   habits: Habit[];
   streakHistory?: number[];
   bestStreak?: number;
-  weeklyAverages?: number[];
-  isNewHabitOpen: boolean;
-  newHabitName: string;
   startDate: Date;
-  isSidebarOpen: boolean;
-  activeTab: string;
-  selectedHabit: Habit | null;
-  timezone: string;
-  weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 1 = Monday, etc.
-  setTimezone: (timezone: string) => void;
-  setWeekStartsOn: (day: 0 | 1 | 2 | 3 | 4 | 5 | 6) => void;
-
-  // Actions
-  setHabits: (habits: Habit[]) => void;
-  setIsNewHabitOpen: (isOpen: boolean) => void;
-  setNewHabitName: (name: string) => void;
-  setStartDate: (date: Date) => void;
-  setIsSidebarOpen: (isOpen: boolean) => void;
-  setActiveTab: (tab: string) => void;
-  setSelectedHabit: (habit: Habit | null) => void;
-  editHabit: (habitId: string, updates: Partial<Habit>) => void;
-  deleteHabit: (habitId: string) => void;
-  archiveHabit: (habitId: string) => void;
-  changeHabitFrequency: (
-    habitId: string,
-    frequency: "daily" | "weekly" | "monthly"
-  ) => void;
-
-  // Business Logic
-  addHabit: (habit: Habit) => void;
-  removeHabit: (habitId: string) => void;
-  updateHabit: (habitId: string, updates: Partial<Habit>) => void;
+  addHabit: (habit: Omit<Habit, "id">) => void;
+  deleteHabit: (id: string) => void;
+  editHabit: (id: string, updates: Partial<Habit>) => void;
   toggleHabitCompletion: (habitId: string, targetDate: Date) => void;
   adjustDates: (days: number) => void;
   calculateProgress: (habit: Habit) => number;
 
-  // Time Tracking Actions
-  startTimeTracking: (habitId: string, type?: 'pomodoro' | 'regular') => void;
-  stopTimeTracking: (habitId: string, notes?: string) => void;
+  // Time Tracking
+  timeTracking: Record<string, TimeTracking>;
+  startTimeTracking: (habitId: string, type?: "regular" | "pomodoro") => void;
+  stopTimeTracking: (habitId: string) => void;
   updateTimeTarget: (
     habitId: string,
     target: {
@@ -155,12 +111,7 @@ interface HabitStore {
   ) => void;
   updatePomodoroSettings: (
     habitId: string,
-    settings: {
-      workDuration: number;
-      breakDuration: number;
-      longBreakDuration: number;
-      sessionsUntilLongBreak: number;
-    }
+    settings: Partial<PomodoroSettings>
   ) => void;
   getTimeProgress: (
     habitId: string,
@@ -170,25 +121,15 @@ interface HabitStore {
     target: number;
     percentage: number;
   };
+  getDailySessions: (habitId: string) => TimeSession[];
+  getHourlyProgress: (habitId: string) => number[];
+
+  // Other actions
   startSession: (habitId: string, type: "regular" | "pomodoro") => void;
   pauseSession: (habitId: string) => void;
   resumeSession: (habitId: string) => void;
   togglePremium: (habitId: string) => void;
 }
-
-const PRICING_PLANS = {
-  monthly: {
-    price: 9.99,
-    name: "Monthly Pro",
-    period: "month",
-  },
-  yearly: {
-    price: 99.99,
-    name: "Yearly Pro",
-    period: "year",
-    savings: "Save 17%",
-  },
-} as const;
 
 interface PaymentHistoryItem {
   id: string;
@@ -226,7 +167,19 @@ interface BillingState {
   };
   isYearly: boolean;
   setIsYearly: (yearly: boolean) => void;
-  pricingPlans: typeof PRICING_PLANS;
+  pricingPlans: {
+    monthly: {
+      price: 9.99;
+      name: "Monthly Pro";
+      period: "month";
+    };
+    yearly: {
+      price: 99.99;
+      name: "Yearly Pro";
+      period: "year";
+      savings: "Save 17%";
+    };
+  };
   updatePaymentMethod: (method: {
     last4: string;
     expiryDate: string;
@@ -261,27 +214,14 @@ const colors = [
 
 const emojis = ["✨", "🌟", "💫", "⭐️", "🎯", "🎨", "📚", "💪", "🧘‍♀️", "🏃‍♀️"];
 
-const defaultPomodoroSettings: {
-  workDuration: number;
-  breakDuration: number;
-  longBreakDuration: number;
-  sessionsUntilLongBreak: number;
-  autoStartBreaks: boolean;
-  autoStartPomodoros: boolean;
-  soundEnabled: boolean;
-  notificationsEnabled: boolean;
-} = {
-  workDuration: 25 * 60,
-  breakDuration: 5 * 60,
-  longBreakDuration: 15 * 60,
+const defaultPomodoroSettings: PomodoroSettings = {
+  workDuration: 25,
+  breakDuration: 5,
+  longBreakDuration: 15,
   sessionsUntilLongBreak: 4,
-  autoStartBreaks: false,
-  autoStartPomodoros: false,
-  soundEnabled: true,
-  notificationsEnabled: true,
 };
 
-export const useHabitStore = create<HabitStore>()(
+export const useHabitStore = create<HabitState>()(
   persist(
     (set, get) => ({
       isPro: false,
@@ -289,225 +229,33 @@ export const useHabitStore = create<HabitStore>()(
       habits: [],
       streakHistory: [],
       bestStreak: 0,
-      weeklyAverages: [],
-      isNewHabitOpen: false,
-      newHabitName: "",
       startDate: (() => {
         const date = new Date();
         date.setDate(date.getDate() - 7);
         return date;
       })(),
-      isSidebarOpen: true,
-      activeTab: "habits",
-      selectedHabit: null,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      weekStartsOn: 1, // Default to Monday
-      setTimezone: (timezone) => set({ timezone }),
-      setWeekStartsOn: (day) => set({ weekStartsOn: day }),
-
-      // Basic setters
-      setHabits: (habits) => set({ habits }),
-      setIsNewHabitOpen: (isOpen) => set({ isNewHabitOpen: isOpen }),
-      setNewHabitName: (name) => set({ newHabitName: name }),
-      setStartDate: (date) => set({ startDate: date }),
-      setIsSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
-      setActiveTab: (tab) => set({ activeTab: tab }),
-      setSelectedHabit: (habit) => set({ selectedHabit: habit }),
-      editHabit: (habitId, updates) => {
-        const { habits } = get();
-        const updatedHabits = habits.map((habit) =>
-          habit.id === habitId ? { ...habit, ...updates } : habit
-        );
-        set({ habits: updatedHabits });
-      },
-      deleteHabit: (habitId) => {
-        const { habits } = get();
-        const filteredHabits = habits.filter((habit) => habit.id !== habitId);
-        set({ habits: filteredHabits });
-      },
-      archiveHabit: (habitId) => {
-        const { habits } = get();
-        const updatedHabits = habits.map((habit) =>
-          habit.id === habitId
-            ? { ...habit, isArchived: !habit.isArchived }
-            : habit
-        );
-        set({ habits: updatedHabits });
-      },
-      changeHabitFrequency: (habitId, frequency) => {
-        const { habits } = get();
-        const updatedHabits = habits.map((habit) =>
-          habit.id === habitId ? { ...habit, frequency } : habit
-        );
-        set({ habits: updatedHabits });
-      },
-
-      // time tracking
-      // Time Tracking Implementation
-      startTimeTracking: (habitId: string, type?: 'pomodoro' | 'regular') => {
-        const { habits } = get();
-        const now = new Date().toISOString();
-
-        set({
-          habits: habits.map((habit) =>
-            habit.id === habitId
-              ? {
-                  ...habit,
-                  timeTracking: {
-                    ...habit.timeTracking,
-                    currentSession: {
-                      startTime: now,
-                      type,
-                    },
-                  },
-                }
-              : habit
-          ),
-        });
-      },
-
-      stopTimeTracking: (habitId: string, notes?: string) => {
-        const { habits } = get();
-        const now = new Date();
-        
-        set({
-          habits: habits.map((habit) => {
-            if (habit.id === habitId && habit.timeTracking?.currentSession) {
-              const startTime = new Date(habit.timeTracking.currentSession.startTime);
-              const duration = Math.round((now.getTime() - startTime.getTime()) / 60000); // Convert to minutes
-              
-              const newSession = {
-                id: Math.random().toString(36).substring(2) + Date.now().toString(36),
-                date: now.toISOString(),
-                duration,
-                notes,
-                type: habit.timeTracking.currentSession.type,
-                completed: true,
-                targetMet: false, // Calculate based on target
-              };
-
-              return {
-                ...habit,
-                timeTracking: {
-                  totalTime: (habit.timeTracking?.totalTime || 0) + duration,
-                  sessions: [...(habit.timeTracking?.sessions || []), newSession],
-                  target: habit.timeTracking?.target,
-                },
-              };
-            }
-            return habit;
-          }),
-        });
-      },
-
-      updateTimeTarget: (habitId: string, target) => {
-        const { habits } = get();
-        
-        set({
-          habits: habits.map((habit) =>
-            habit.id === habitId
-              ? {
-                  ...habit,
-                  timeTracking: {
-                    ...habit.timeTracking,
-                    target: {
-                      ...habit.timeTracking?.target,
-                      ...target,
-                    },
-                  },
-                }
-              : habit
-          ),
-        });
-      },
-
-      updatePomodoroSettings: (habitId, settings) => {
-        const habits = get().habits;
-        const habitIndex = habits.findIndex((h) => h.id === habitId);
-        if (habitIndex === -1) return;
-
-        const updatedHabits = [...habits];
-        const habit = { ...updatedHabits[habitIndex] };
-        
-        if (!habit.timeTracking) {
-          habit.timeTracking = {
-            totalTime: 0,
-            sessions: [],
-          };
-        }
-
-        habit.timeTracking.pomodoroSettings = {
-          ...defaultPomodoroSettings,
-          ...habit.timeTracking.pomodoroSettings,
-          ...settings,
-        };
-        updatedHabits[habitIndex] = habit;
-        set({ habits: updatedHabits });
-      },
-
-      getTimeProgress: (habitId: string, period) => {
-        const { habits } = get();
-        const habit = habits.find((h) => h.id === habitId);
-        if (!habit?.timeTracking) {
-          return { current: 0, target: 0, percentage: 0 };
-        }
-
-        const now = new Date();
-        const sessions = habit.timeTracking.sessions || [];
-        let current = 0;
-        let target = 0;
-
-        switch (period) {
-          case 'daily':
-            current = sessions
-              .filter((s) => new Date(s.date).toDateString() === now.toDateString())
-              .reduce((sum, s) => sum + s.duration, 0);
-            target = habit.timeTracking.target?.daily || 0;
-            break;
-          case 'weekly':
-            const weekStart = new Date(now);
-            weekStart.setDate(now.getDate() - now.getDay());
-            current = sessions
-              .filter((s) => new Date(s.date) >= weekStart)
-              .reduce((sum, s) => sum + s.duration, 0);
-            target = habit.timeTracking.target?.weekly || 0;
-            break;
-          case 'monthly':
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            current = sessions
-              .filter((s) => new Date(s.date) >= monthStart)
-              .reduce((sum, s) => sum + s.duration, 0);
-            target = habit.timeTracking.target?.monthly || 0;
-            break;
-        }
-
-        return {
-          current,
-          target,
-          percentage: target > 0 ? (current / target) * 100 : 0,
-        };
-      },
-      // end tracking
-      // Business Logic
-      addHabit: (habit: Habit) =>
+      addHabit: (habit: Omit<Habit, "id">) =>
         set((state) => {
-          const newHabits = [...(state.habits || []), habit];
+          const newHabits = [
+            ...(state.habits || []),
+            { id: generateId(), ...habit },
+          ];
           // Update billing store usage limits
           useBillingStore.getState().updateUsageLimits(newHabits.length);
           return { habits: newHabits };
         }),
-      removeHabit: (habitId: string) =>
+      deleteHabit: (id: string) =>
         set((state) => {
-          const newHabits = state.habits?.filter((h) => h.id !== habitId) || [];
+          const newHabits = state.habits?.filter((h) => h.id !== id) || [];
           // Update billing store usage limits
           useBillingStore.getState().updateUsageLimits(newHabits.length);
           return { habits: newHabits };
         }),
-      updateHabit: (habitId: string, updates: Partial<Habit>) =>
+      editHabit: (id: string, updates: Partial<Habit>) =>
         set((state) => ({
           habits:
             state.habits?.map((habit) =>
-              habit.id === habitId ? { ...habit, ...updates } : habit
+              habit.id === id ? { ...habit, ...updates } : habit
             ) || [],
         })),
       toggleHabitCompletion: (habitId, targetDate) => {
@@ -596,18 +344,202 @@ export const useHabitStore = create<HabitStore>()(
           bestStreak,
         });
       },
-
       adjustDates: (days) => {
         const { startDate } = get();
         const newDate = new Date(startDate);
         newDate.setDate(newDate.getDate() + days);
         set({ startDate: newDate });
       },
-
       calculateProgress: (habit) => {
         const today = new Date().toISOString().split("T")[0];
         return habit.completedDates.includes(today) ? 100 : 0;
       },
+
+      // Time Tracking
+      timeTracking: {},
+      startTimeTracking: (
+        habitId: string,
+        type: "regular" | "pomodoro" = "regular"
+      ) => {
+        set((state) => {
+          const tracking = state.timeTracking[habitId] || {
+            sessions: [],
+            pomodoroSettings: defaultPomodoroSettings,
+          };
+          return {
+            timeTracking: {
+              ...state.timeTracking,
+              [habitId]: {
+                ...tracking,
+                currentSession: {
+                  startTime: new Date().toISOString(),
+                  type,
+                },
+              },
+            },
+          };
+        });
+      },
+
+      stopTimeTracking: (habitId: string) => {
+        set((state) => {
+          const tracking = state.timeTracking[habitId];
+          if (!tracking?.currentSession) return state;
+
+          const endTime = new Date();
+          const startTime = new Date(tracking.currentSession.startTime);
+          const duration = Math.floor(
+            (endTime.getTime() - startTime.getTime()) / 1000
+          );
+
+          const newSession: TimeSession = {
+            id: crypto.randomUUID(),
+            habitId,
+            startTime: tracking.currentSession.startTime,
+            endTime: endTime.toISOString(),
+            duration,
+            type: tracking.currentSession.type,
+            hour: startTime.getHours(),
+          };
+
+          return {
+            timeTracking: {
+              ...state.timeTracking,
+              [habitId]: {
+                ...tracking,
+                currentSession: undefined,
+                sessions: [...tracking.sessions, newSession],
+              },
+            },
+          };
+        });
+      },
+
+      getTimeProgress: (habitId: string, period: "daily" | "weekly" | "monthly") => {
+        const sessions = get().getDailySessions(habitId);
+        const now = new Date();
+        let current = 0;
+        let target = 0;
+
+        // Get the habit's time tracking settings
+        const habit = get().habits.find(h => h.id === habitId);
+        if (!habit?.timeTracking?.target) {
+          return { current: 0, target: 0, percentage: 0 };
+        }
+
+        switch (period) {
+          case "daily":
+            current = sessions
+              .filter(s => new Date(s.startTime).toDateString() === now.toDateString())
+              .reduce((sum, s) => sum + s.duration, 0);
+            target = habit.timeTracking.target.daily || 0;
+            break;
+          case "weekly":
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay());
+            current = sessions
+              .filter(s => new Date(s.startTime) >= weekStart)
+              .reduce((sum, s) => sum + s.duration, 0);
+            target = habit.timeTracking.target.weekly || 0;
+            break;
+          case "monthly":
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            current = sessions
+              .filter(s => new Date(s.startTime) >= monthStart)
+              .reduce((sum, s) => sum + s.duration, 0);
+            target = habit.timeTracking.target.monthly || 0;
+            break;
+        }
+
+        return {
+          current,
+          target,
+          percentage: target > 0 ? (current / target) * 100 : 0,
+        };
+      },
+
+      updateTimeTarget: (
+        habitId: string,
+        target: {
+          daily?: number;
+          weekly?: number;
+          monthly?: number;
+        }
+      ) => {
+        set((state) => ({
+          habits: state.habits.map((habit) =>
+            habit.id === habitId
+              ? {
+                  ...habit,
+                  timeTracking: {
+                    ...habit.timeTracking,
+                    target: {
+                      ...habit.timeTracking?.target,
+                      ...target,
+                    },
+                  },
+                }
+              : habit
+          ),
+        }));
+      },
+
+      updatePomodoroSettings: (
+        habitId: string,
+        settings: Partial<PomodoroSettings>
+      ) => {
+        set((state) => {
+          const tracking = state.timeTracking[habitId] || {
+            sessions: [],
+            pomodoroSettings: defaultPomodoroSettings,
+          };
+          return {
+            timeTracking: {
+              ...state.timeTracking,
+              [habitId]: {
+                ...tracking,
+                pomodoroSettings: {
+                  ...tracking.pomodoroSettings,
+                  ...settings,
+                },
+              },
+            },
+          };
+        });
+      },
+
+      getDailySessions: (habitId: string) => {
+        const state = get();
+        const tracking = state.timeTracking[habitId];
+        if (!tracking) return [];
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        return tracking.sessions.filter((session) => {
+          const sessionDate = new Date(session.startTime);
+          sessionDate.setHours(0, 0, 0, 0);
+          return sessionDate.getTime() === today.getTime();
+        });
+      },
+
+      getHourlyProgress: (habitId: string) => {
+        const sessions = get().getDailySessions(habitId);
+        const hourlyProgress: number[] = Array(24).fill(0);
+
+        sessions.forEach((session) => {
+          const startHour = new Date(session.startTime).getHours();
+          const duration = session.duration / 3600; // Convert to hours
+          hourlyProgress[startHour] = Math.min(
+            1,
+            (hourlyProgress[startHour] || 0) + duration
+          );
+        });
+
+        return hourlyProgress;
+      },
+
+      // Other actions
       startSession: (habitId: string, type: "regular" | "pomodoro") => {
         const { habits } = get();
         const now = new Date().toISOString();
@@ -634,10 +566,9 @@ export const useHabitStore = create<HabitStore>()(
           ),
         });
       },
-
       pauseSession: (habitId: string) => {
         const { habits } = get();
-        
+
         set({
           habits: habits.map((habit) =>
             habit.id === habitId && habit.timeTracking?.currentSession
@@ -655,10 +586,9 @@ export const useHabitStore = create<HabitStore>()(
           ),
         });
       },
-
       resumeSession: (habitId: string) => {
         const { habits } = get();
-        
+
         set({
           habits: habits.map((habit) =>
             habit.id === habitId && habit.timeTracking?.currentSession
@@ -676,10 +606,9 @@ export const useHabitStore = create<HabitStore>()(
           ),
         });
       },
-
       togglePremium: (habitId: string) => {
         const { habits } = get();
-        
+
         set({
           habits: habits.map((habit) =>
             habit.id === habitId
@@ -703,22 +632,28 @@ function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
-function calculateStats(sessions: {
-  id: string;
-  date: string;
-  duration: number;
-  type: "regular" | "pomodoro";
-  phase?: "work" | "break" | "longBreak";
-  notes?: string;
-  completed: boolean;
-  targetMet: boolean;
-}[]): TimeTracking["stats"] {
+function calculateStats(
+  sessions: {
+    id: string;
+    date: string;
+    duration: number;
+    type: "regular" | "pomodoro";
+    phase?: "work" | "break" | "longBreak";
+    notes?: string;
+    completed: boolean;
+    targetMet: boolean;
+  }[]
+): TimeTracking["stats"] {
   const totalSessions = sessions.length;
-  const totalTimeSpent = sessions.reduce((acc, session) => acc + session.duration, 0);
+  const totalTimeSpent = sessions.reduce(
+    (acc, session) => acc + session.duration,
+    0
+  );
   const completedPomodoros = sessions.filter(
     (s) => s.type === "pomodoro" && s.completed
   ).length;
-  const averageSessionLength = totalSessions > 0 ? totalTimeSpent / totalSessions : 0;
+  const averageSessionLength =
+    totalSessions > 0 ? totalTimeSpent / totalSessions : 0;
 
   return {
     totalSessions,
@@ -728,16 +663,18 @@ function calculateStats(sessions: {
   };
 }
 
-function calculateStreak(sessions: {
-  id: string;
-  date: string;
-  duration: number;
-  type: "regular" | "pomodoro";
-  phase?: "work" | "break" | "longBreak";
-  notes?: string;
-  completed: boolean;
-  targetMet: boolean;
-}[]): TimeTracking["streakData"] {
+function calculateStreak(
+  sessions: {
+    id: string;
+    date: string;
+    duration: number;
+    type: "regular" | "pomodoro";
+    phase?: "work" | "break" | "longBreak";
+    notes?: string;
+    completed: boolean;
+    targetMet: boolean;
+  }[]
+): TimeTracking["streakData"] {
   if (sessions.length === 0) {
     return { currentStreak: 0, longestStreak: 0 };
   }
@@ -813,7 +750,19 @@ export const useBillingStore = create<BillingState>()(
       },
       isYearly: false,
       setIsYearly: (yearly) => set({ isYearly: yearly }),
-      pricingPlans: PRICING_PLANS,
+      pricingPlans: {
+        monthly: {
+          price: 9.99,
+          name: "Monthly Pro",
+          period: "month",
+        },
+        yearly: {
+          price: 99.99,
+          name: "Yearly Pro",
+          period: "year",
+          savings: "Save 17%",
+        },
+      },
       updatePaymentMethod: (method) => set({ paymentMethod: method }),
       updateSubscription: (details) => set({ subscriptionDetails: details }),
       updateUsageLimits: (habitsCount) =>

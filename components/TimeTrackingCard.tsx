@@ -2,7 +2,6 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { useHabitStore } from "@/lib/store";
 import { useState, useEffect } from "react";
-import { Progress } from "./ui/progress";
 import {
   Play,
   Square,
@@ -13,55 +12,63 @@ import {
   History,
   Settings2,
   Timer,
+  Sparkles,
+  BarChart3,
+  ChevronRight,
+  Pause,
+  X,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { SheetHeader, SheetTitle } from "./ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "./ui/accordion";
-import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
-import "react-circular-progressbar/dist/styles.css";
-import { Sparkles, BarChart3, ChevronRight } from "lucide-react";
+import { format, startOfWeek, addDays } from "date-fns";
 
-export function TimeTrackingCard({ habit }: { habit: any }) {
+// Format time helper function
+const formatTime = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
+
+export function TimeTrackingCard() {
   const {
+    habits,
     startTimeTracking,
     stopTimeTracking,
-    updateTimeTarget,
     getTimeProgress,
+    getHourlyProgress,
     updatePomodoroSettings,
   } = useHabitStore();
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
-  const [showTargetDialog, setShowTargetDialog] = useState(false);
-  const [targetInputs, setTargetInputs] = useState({
-    daily: "",
-    weekly: "",
-    monthly: "",
-  });
-  const [showSessionsDialog, setShowSessionsDialog] = useState(false);
+  const [trackingMode, setTrackingMode] = useState<"regular" | "pomodoro">(
+    "regular"
+  );
+  const [showStats, setShowStats] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [pomodoroSettings, setPomodoroSettings] = useState({
     workDuration: 25,
@@ -69,31 +76,29 @@ export function TimeTrackingCard({ habit }: { habit: any }) {
     longBreakDuration: 15,
     sessionsUntilLongBreak: 4,
   });
-  const [trackingMode, setTrackingMode] = useState<"regular" | "pomodoro">(
-    "regular"
-  );
-  const [pomodoroPhase, setPomodoroPhase] = useState<
-    "work" | "break" | "longBreak"
-  >("work");
-  const [completedPomodoros, setCompletedPomodoros] = useState(0);
-  const [showStats, setShowStats] = useState(false);
 
-  const progress = {
-    daily: getTimeProgress(habit.id, "daily"),
-    weekly: getTimeProgress(habit.id, "weekly"),
-    monthly: getTimeProgress(habit.id, "monthly"),
-  };
+  // Get hourly progress data
+  const hourlyProgress = selectedHabitId
+    ? getHourlyProgress(selectedHabitId)
+    : [];
+
+  const selectedHabit = habits.find((h) => h.id === selectedHabitId);
+  const progress = selectedHabit
+    ? {
+        daily: getTimeProgress(selectedHabit.id, "daily"),
+        weekly: getTimeProgress(selectedHabit.id, "weekly"),
+        monthly: getTimeProgress(selectedHabit.id, "monthly"),
+      }
+    : null;
 
   useEffect(() => {
-    return () => {
-      if (timer) {
-        clearInterval(timer);
-      }
-    };
-  }, [timer]);
+    if (habits.length > 0 && !selectedHabitId) {
+      setSelectedHabitId(habits[0].id);
+    }
+  }, [habits, selectedHabitId]);
 
   const handleStartTracking = () => {
-    startTimeTracking(habit.id);
+    startTimeTracking(selectedHabitId);
     setIsTracking(true);
     const startTime = Date.now();
     const newTimer = setInterval(() => {
@@ -107,557 +112,365 @@ export function TimeTrackingCard({ habit }: { habit: any }) {
       clearInterval(timer);
       setTimer(null);
     }
-    stopTimeTracking(habit.id);
+    stopTimeTracking(selectedHabitId);
     setIsTracking(false);
     setElapsed(0);
   };
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
-  };
+  // Add weekly progress tracking
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const startOfCurrentWeek = startOfWeek(new Date());
+    return addDays(startOfCurrentWeek, i);
+  });
 
-  const handleUpdateTarget = () => {
-    const targets = {
-      daily: targetInputs.daily ? parseInt(targetInputs.daily) : undefined,
-      weekly: targetInputs.weekly ? parseInt(targetInputs.weekly) : undefined,
-      monthly: targetInputs.monthly
-        ? parseInt(targetInputs.monthly)
-        : undefined,
-    };
-    updateTimeTarget(habit.id, targets);
-    setShowTargetDialog(false);
-  };
+  const weeklyHourlyProgress = weekDays.map((day) => {
+    if (!selectedHabit) return Array(24).fill(0);
+    const sessions = useHabitStore
+      .getState()
+      .getDailySessions(selectedHabit.id);
+    const dayProgress = Array(24).fill(0);
 
-  const getPhaseColor = (phase: string) => {
-    switch (phase) {
-      case "work":
-        return {
-          bg: "bg-green-500",
-          text: "text-green-500",
-          from: "from-green-500",
-          to: "to-emerald-700",
-        };
-      case "break":
-        return {
-          bg: "bg-blue-500",
-          text: "text-blue-500",
-          from: "from-blue-500",
-          to: "to-cyan-700",
-        };
-      default:
-        return {
-          bg: "bg-purple-500",
-          text: "text-purple-500",
-          from: "from-purple-500",
-          to: "to-violet-700",
-        };
-    }
-  };
+    sessions.forEach((session) => {
+      const sessionDate = new Date(session.startTime);
+      if (sessionDate.toDateString() === day.toDateString()) {
+        const hour = sessionDate.getHours();
+        const duration = session.duration / 3600; // Convert to hours
+        dayProgress[hour] = Math.min(1, (dayProgress[hour] || 0) + duration);
+      }
+    });
 
-  const calculateStreak = () => {
-    if (!habit.timeTracking?.sessions) return 0;
-    let streak = 0;
-    const today = new Date();
-    const sessions = habit.timeTracking.sessions;
+    return dayProgress;
+  });
 
-    for (let i = 0; i < 7; i++) {
-      const date = format(
-        new Date(today.getTime() - i * 24 * 60 * 60 * 1000),
-        "yyyy-MM-dd"
-      );
-      if (sessions.some((s) => s.date.startsWith(date))) {
-        streak++;
-      } else break;
-    }
-    return streak;
+  const isCurrentDay = (date: Date) => {
+    return date.toDateString() === new Date().toDateString();
   };
 
   return (
-    <Card className="relative p-12 space-y-8 bg-gradient-to-br from-background via-background to-muted/10 border-2 shadow-lg hover:shadow-xl transition-all duration-300 ">
-      {/* Premium Badge */}
-      <div className="absolute -top-4 -right-4">
-        <div className="relative">
-          <div className="px-4 py-1.5 text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full shadow-lg">
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              Premium
+    <div className="h-full flex flex-col">
+      <SheetHeader className="px-6 py-4 border-b">
+        <SheetTitle className="flex items-center gap-3 text-xl">
+          <div className="p-2 rounded-xl bg-primary/10">
+            <Timer className="w-5 h-5 text-primary" />
+          </div>
+          Time Tracking
+          <div className="ml-auto flex items-center gap-2">
+            <div className="px-3 py-1 text-xs font-semibold text-white bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full shadow-sm">
+              <span className="flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                Premium
+              </span>
+            </div>
+          </div>
+        </SheetTitle>
+      </SheetHeader>
+
+      <div className="flex-1 p-6 space-y-8 overflow-y-auto">
+        {/* Habit Selection */}
+        <div className="flex items-center gap-4">
+          <Select
+            value={selectedHabitId || ""}
+            onValueChange={setSelectedHabitId}
+          >
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder="Select a habit to track" />
+            </SelectTrigger>
+            <SelectContent>
+              {habits.map((habit) => (
+                <SelectItem key={habit.id} value={habit.id}>
+                  {habit.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowStats(!showStats)}
+              className={cn(
+                "hover:bg-primary/10 transition-colors",
+                showStats && "bg-primary/10"
+              )}
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSettingsDialog(true)}
+              className="hover:bg-primary/10 transition-colors"
+            >
+              <Settings2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Timer Display */}
+        {selectedHabit ? (
+          <div className="flex flex-col items-center justify-center space-y-8 py-12">
+            <div className="relative w-72 h-72">
+              <CircularProgressbar
+                value={progress?.daily.percentage || 0}
+                text={formatTime(elapsed)}
+                styles={buildStyles({
+                  textSize: "16px",
+                  pathTransitionDuration: 0.5,
+                  pathColor: "var(--primary)",
+                  textColor: "currentColor",
+                  trailColor: "rgba(200, 200, 200, 0.1)",
+                })}
+              />
+            </div>
+
+            <div className="flex gap-4">
+              {isTracking ? (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleStopTracking}
+                  className="px-8 py-6 text-lg font-medium hover:bg-destructive/10 transition-colors"
+                >
+                  <Square className="h-6 w-6 mr-2" />
+                  Stop
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  onClick={handleStartTracking}
+                  className="px-12 py-6 text-lg font-medium bg-gradient-to-r from-primary to-primary-foreground hover:opacity-90 transition-opacity"
+                >
+                  <Play className="h-6 w-6 mr-2" />
+                  Start
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-muted-foreground">
+            {habits.length > 0
+              ? "Select a habit to start tracking time"
+              : "Create a habit to start tracking time"}
+          </div>
+        )}
+
+        {/* Daily Progress Visualization */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Today's Sessions</h3>
+            <span className="text-sm text-muted-foreground">
+              {hourlyProgress.reduce((sum, p) => sum + (p > 0 ? 1 : 0), 0)}{" "}
+              active hours
             </span>
           </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full blur-lg opacity-40" />
-        </div>
-      </div>
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-xl bg-primary/10 backdrop-blur-sm ring-1 ring-primary/20">
-            <Clock className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-2xl font-semibold tracking-tight">
-              Time Tracking
-            </h3>
-            <p className="text-base text-muted-foreground mt-1">
-              {trackingMode === "pomodoro" ? "Pomodoro Timer" : "Regular Timer"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setShowStats(!showStats)}
-            className={cn(
-              "hover:scale-105 transition-transform hover:bg-primary/10 p-3",
-              showStats && "bg-primary/10"
-            )}
-          >
-            <BarChart3 className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setShowSessionsDialog(true)}
-            className="hover:scale-105 transition-transform hover:bg-primary/10 p-3"
-          >
-            <History className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setShowSettingsDialog(true)}
-            className="hover:scale-105 transition-transform hover:bg-primary/10 p-3"
-          >
-            <Settings2 className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setShowTargetDialog(true)}
-            className="hover:scale-105 transition-transform hover:bg-primary/10 p-3"
-          >
-            <Target className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {showStats && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-3 gap-6 p-6 mb-6 rounded-xl bg-muted/50 backdrop-blur-sm border border-border/50">
-              <div className="space-y-2 text-center p-4">
-                <div className="text-3xl font-bold bg-gradient-to-br from-primary to-primary-foreground bg-clip-text text-transparent">
-                  {calculateStreak()}
-                </div>
-                <div className="text-sm text-muted-foreground font-medium">
-                  Day Streak
-                </div>
-              </div>
-              <div className="space-y-2 text-center p-4">
-                <div className="text-3xl font-bold bg-gradient-to-br from-primary to-primary-foreground bg-clip-text text-transparent">
-                  {habit.timeTracking?.sessions?.length || 0}
-                </div>
-                <div className="text-sm text-muted-foreground font-medium">
-                  Sessions
-                </div>
-              </div>
-              <div className="space-y-2 text-center p-4">
-                <div className="text-3xl font-bold bg-gradient-to-br from-primary to-primary-foreground bg-clip-text text-transparent">
-                  {Math.round(progress.daily.percentage)}%
-                </div>
-                <div className="text-sm text-muted-foreground font-medium">
-                  Daily Goal
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Timer Mode Selector */}
-      <div className="flex justify-center mb-8">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="gap-3 px-8 py-6 text-lg font-medium hover:bg-primary/10 transition-colors ring-1 ring-primary/20"
-            >
-              <Timer className="h-6 w-6" />
-              {trackingMode === "regular" ? "Regular Timer" : "Pomodoro Timer"}
-              <ChevronRight className="h-5 w-5 ml-2" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56">
-            <DropdownMenuItem
-              onClick={() => setTrackingMode("regular")}
-              className="gap-3 py-3"
-            >
-              <Clock className="h-5 w-5" />
-              Regular Timer
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setTrackingMode("pomodoro")}
-              className="gap-3 py-3"
-            >
-              <Timer className="h-5 w-5" />
-              Pomodoro Timer
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Timer Display */}
-      <div className="flex flex-col items-center justify-center space-y-8 py-8">
-        <div className="w-64 h-64">
-          <CircularProgressbar
-            value={
-              trackingMode === "pomodoro"
-                ? (elapsed /
-                    (pomodoroSettings[
-                      pomodoroPhase === "work"
-                        ? "workDuration"
-                        : pomodoroPhase === "break"
-                        ? "breakDuration"
-                        : "longBreakDuration"
-                    ] *
-                      60)) *
-                  100
-                : 0
-            }
-            text={formatTime(elapsed)}
-            styles={buildStyles({
-              textSize: "16px",
-              pathTransitionDuration: 0.5,
-              pathColor:
-                pomodoroPhase === "work"
-                  ? "#22c55e"
-                  : pomodoroPhase === "break"
-                  ? "#3b82f6"
-                  : "#a855f7",
-              textColor: "currentColor",
-              trailColor: "rgba(200, 200, 200, 0.1)",
-            })}
-          />
-        </div>
-
-        <div className="flex gap-4">
-          {isTracking ? (
-            <>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleStopTracking}
-                className="px-8 py-6 text-lg font-medium hover:bg-destructive/10 transition-colors"
-              >
-                <Square className="h-6 w-6 mr-2" />
-                Stop
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="lg"
-              onClick={handleStartTracking}
-              className="px-12 py-6 text-lg font-medium bg-gradient-to-r from-primary to-primary-foreground hover:opacity-90 transition-opacity"
-            >
-              <Play className="h-6 w-6 mr-2" />
-              Start
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Progress Tabs */}
-      <div className="pt-8 border-t">
-        <Tabs defaultValue="daily" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 p-1.5 rounded-lg bg-muted/50 backdrop-blur-sm">
-            <TabsTrigger
-              value="daily"
-              className="px-8 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all duration-200"
-            >
-              Daily
-            </TabsTrigger>
-            <TabsTrigger
-              value="weekly"
-              className="px-8 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all duration-200"
-            >
-              Weekly
-            </TabsTrigger>
-            <TabsTrigger
-              value="monthly"
-              className="px-8 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all duration-200"
-            >
-              Monthly
-            </TabsTrigger>
-          </TabsList>
-          <AnimatePresence mode="wait">
-            {["daily", "weekly", "monthly"].map((period) => (
-              <TabsContent key={period} value={period} className="mt-6">
-                <motion.div
-                  initial={{ y: 10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -10, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Progress</span>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(progress[period].percentage)}%
-                      </span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-primary to-primary-foreground"
-                        style={{ width: `${progress[period].percentage}%` }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress[period].percentage}%` }}
-                        transition={{ duration: 0.5 }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-center text-sm text-muted-foreground">
-                      <span>{formatTime(progress[period].current)}</span>
-                      <span>{formatTime(progress[period].target)}</span>
-                    </div>
+          <div className="space-y-2">
+            <div>Today</div>
+            <div className="grid grid-cols-24 gap-1">
+              {hourlyProgress.map((progress, hour) => (
+                <div key={hour} className="space-y-1">
+                  <div className="h-10 bg-black/10 dark:bg-white/10 rounded-lg overflow-hidden">
+                    <div
+                      className="bg-primary/20 h-full transition-all duration-300"
+                      style={{
+                        height: `${progress * 100}%`,
+                        backgroundColor:
+                          selectedHabit?.color || "var(--primary)",
+                      }}
+                    />
                   </div>
-                </motion.div>
-              </TabsContent>
-            ))}
-          </AnimatePresence>
-        </Tabs>
-      </div>
-
-      {/* Dialogs */}
-      <Dialog open={showSessionsDialog} onOpenChange={setShowSessionsDialog}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Session History
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Accordion type="single" collapsible className="w-full">
-              {habit.timeTracking?.sessions ? (
-                Object.entries(
-                  habit.timeTracking.sessions
-                    .sort(
-                      (a, b) =>
-                        new Date(b.date).getTime() - new Date(a.date).getTime()
-                    )
-                    .reduce((acc, session) => {
-                      const date = format(
-                        new Date(session.date),
-                        "MMM dd, yyyy"
-                      );
-                      if (!acc[date]) acc[date] = [];
-                      acc[date].push(session);
-                      return acc;
-                    }, {} as Record<string, typeof habit.timeTracking.sessions>)
-                ).map(([date, sessions]) => (
-                  <AccordionItem key={date} value={date}>
-                    <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center justify-between w-full pr-4">
-                        <span className="font-medium">{date}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {sessions.length} sessions •{" "}
-                          {Math.round(
-                            sessions.reduce((acc, s) => acc + s.duration, 0)
-                          )}{" "}
-                          minutes
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3">
-                        {sessions.map((session, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={cn(
-                                  "p-2 rounded-full",
-                                  session.type === "pomodoro"
-                                    ? "bg-green-500/10"
-                                    : "bg-primary/10"
-                                )}
-                              >
-                                {session.type === "pomodoro" ? (
-                                  <Timer className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <Clock className="h-4 w-4 text-primary" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="font-medium">
-                                  {session.type === "pomodoro"
-                                    ? "Pomodoro Session"
-                                    : "Regular Session"}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {format(new Date(session.date), "h:mm a")} •{" "}
-                                  {session.duration} minutes
-                                </div>
-                              </div>
-                            </div>
-                            {session.notes && (
-                              <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                                {session.notes}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No sessions recorded yet
+                  {/* <div className="text-xs text-muted-foreground text-center">
+                  {hour.toString().padStart(2, "0")}
+                </div> */}
                 </div>
-              )}
-            </Accordion>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings2 className="h-5 w-5" />
-              Pomodoro Settings
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Work Duration (minutes)
-              </Label>
-              <Input
-                type="number"
-                value={pomodoroSettings.workDuration}
-                onChange={(e) =>
-                  setPomodoroSettings({
-                    ...pomodoroSettings,
-                    workDuration: parseInt(e.target.value),
-                  })
-                }
-                className="focus-visible:ring-primary"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Break Duration (minutes)
-              </Label>
-              <Input
-                type="number"
-                value={pomodoroSettings.breakDuration}
-                onChange={(e) =>
-                  setPomodoroSettings({
-                    ...pomodoroSettings,
-                    breakDuration: parseInt(e.target.value),
-                  })
-                }
-                className="focus-visible:ring-primary"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Long Break Duration (minutes)
-              </Label>
-              <Input
-                type="number"
-                value={pomodoroSettings.longBreakDuration}
-                onChange={(e) =>
-                  setPomodoroSettings({
-                    ...pomodoroSettings,
-                    longBreakDuration: parseInt(e.target.value),
-                  })
-                }
-                className="focus-visible:ring-primary"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Sessions Until Long Break
-              </Label>
-              <Input
-                type="number"
-                value={pomodoroSettings.sessionsUntilLongBreak}
-                onChange={(e) =>
-                  setPomodoroSettings({
-                    ...pomodoroSettings,
-                    sessionsUntilLongBreak: parseInt(e.target.value),
-                  })
-                }
-                className="focus-visible:ring-primary"
-              />
+              ))}
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                updatePomodoroSettings(habit.id, pomodoroSettings);
-                setShowSettingsDialog(false);
-              }}
-              className="w-full sm:w-auto"
-            >
-              Save Settings
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      <Dialog open={showTargetDialog} onOpenChange={setShowTargetDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Set Time Targets
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            {["daily", "weekly", "monthly"].map((period) => (
-              <div key={period} className="space-y-2">
-                <Label className="text-sm font-medium">
-                  {period.charAt(0).toUpperCase() + period.slice(1)} Target
-                  (minutes)
-                </Label>
+        {/* Weekly Hourly Progress */}
+        <div className="space-y-4 mt-8">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold tracking-tight">
+              Weekly Activity
+            </h3>
+            <div className="text-xs text-muted-foreground">
+              {format(weekDays[0], "MMM d")} - {format(weekDays[6], "MMM d")}
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl bg-black/5 dark:bg-white/5 p-4 backdrop-blur-sm">
+            {weekDays.map((day, dayIndex) => (
+              <div
+                key={day.toISOString()}
+                className={cn(
+                  "space-y-2",
+                  isCurrentDay(day) &&
+                    "bg-gradient-to-r from-primary/10 to-transparent rounded-lg p-3 -mx-2"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "text-sm font-medium",
+                        isCurrentDay(day) && "text-primary"
+                      )}
+                    >
+                      {format(day, "EEE")}
+                    </span>
+                    {isCurrentDay(day) && (
+                      <span className="text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                        Today
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {weeklyHourlyProgress[dayIndex].reduce(
+                      (sum, p) => sum + (p > 0 ? 1 : 0),
+                      0
+                    )}{" "}
+                    hrs active
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 grid grid-cols-24 gap-px pointer-events-none opacity-5">
+                    {Array(24)
+                      .fill(0)
+                      .map((_, i) => (
+                        <div
+                          key={i}
+                          className="border-r border-primary/20 last:border-r-0"
+                        />
+                      ))}
+                  </div>
+
+                  <div className="grid grid-cols-24 gap-px h-8">
+                    {weeklyHourlyProgress[dayIndex].map((progress, hour) => (
+                      <div key={hour} className="group relative">
+                        <div
+                          className={cn(
+                            "absolute bottom-0 w-full rounded-sm transition-all duration-300",
+                            progress > 0
+                              ? "bg-primary"
+                              : "bg-black/10 dark:bg-white/10",
+                            isCurrentDay(day) ? "opacity-100" : "opacity-60"
+                          )}
+                          style={{
+                            height: progress > 0 ? `${progress * 100}%` : "15%",
+                            backgroundColor:
+                              progress > 0
+                                ? selectedHabit?.color || "var(--primary)"
+                                : undefined,
+                          }}
+                        />
+                        <div className="opacity-0 group-hover:opacity-100 absolute -top-6 left-1/2 -translate-x-1/2 bg-background border px-2 py-1 rounded text-[10px] whitespace-nowrap z-10">
+                          {hour}:00 - {(hour + 1) % 24}:00
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-primary/60" />
+                <span>Active Hours</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-black/10 dark:bg-white/10" />
+                <span>Inactive</span>
+              </div>
+            </div>
+            <button className="hover:text-foreground transition-colors">
+              View detailed analytics →
+            </button>
+          </div>
+        </div>
+
+        {/* Settings Dialog */}
+        <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Settings2 className="w-5 h-5" />
+                Pomodoro Settings
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                <Label>Work Duration (minutes)</Label>
                 <Input
                   type="number"
-                  value={targetInputs[period]}
+                  value={pomodoroSettings.workDuration}
                   onChange={(e) =>
-                    setTargetInputs({
-                      ...targetInputs,
-                      [period]: e.target.value,
-                    })
+                    setPomodoroSettings((prev) => ({
+                      ...prev,
+                      workDuration: parseInt(e.target.value),
+                    }))
                   }
-                  className="focus-visible:ring-primary"
-                  placeholder={`Enter ${period} target...`}
                 />
               </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button onClick={handleUpdateTarget} className="w-full sm:w-auto">
-              Save Targets
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
+              <div className="space-y-2">
+                <Label>Break Duration (minutes)</Label>
+                <Input
+                  type="number"
+                  value={pomodoroSettings.breakDuration}
+                  onChange={(e) =>
+                    setPomodoroSettings((prev) => ({
+                      ...prev,
+                      breakDuration: parseInt(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Long Break Duration (minutes)</Label>
+                <Input
+                  type="number"
+                  value={pomodoroSettings.longBreakDuration}
+                  onChange={(e) =>
+                    setPomodoroSettings((prev) => ({
+                      ...prev,
+                      longBreakDuration: parseInt(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Sessions Until Long Break</Label>
+                <Input
+                  type="number"
+                  value={pomodoroSettings.sessionsUntilLongBreak}
+                  onChange={(e) =>
+                    setPomodoroSettings((prev) => ({
+                      ...prev,
+                      sessionsUntilLongBreak: parseInt(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  if (selectedHabitId) {
+                    updatePomodoroSettings(selectedHabitId, pomodoroSettings);
+                  }
+                  setShowSettingsDialog(false);
+                }}
+              >
+                Save Settings
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
   );
 }
