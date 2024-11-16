@@ -68,17 +68,84 @@ interface HabitStore {
   ) => void;
 
   // Business Logic
-  addHabit: (name: string) => void;
+  addHabit: (habit: Habit) => void;
+  removeHabit: (habitId: string) => void;
+  updateHabit: (habitId: string, updates: Partial<Habit>) => void;
   toggleHabitCompletion: (habitId: string, targetDate: Date) => void;
   adjustDates: (days: number) => void;
   calculateProgress: (habit: Habit) => number;
-  // editHabit: (habitId: string, updates: Partial<Habit>) => void;
-  // deleteHabit: (habitId: string) => void;
-  // archiveHabit: (habitId: string) => void;
-  // changeHabitFrequency: (
-  //   habitId: string,
-  //   frequency: "daily" | "weekly" | "monthly"
-  // ) => void;
+}
+
+const PRICING_PLANS = {
+  monthly: {
+    price: 9.99,
+    name: "Monthly Pro",
+    period: "month",
+  },
+  yearly: {
+    price: 99.99,
+    name: "Yearly Pro",
+    period: "year",
+    savings: "Save 17%",
+  },
+} as const;
+
+interface BillingState {
+  subscriptionDetails: {
+    plan: string;
+    status: string;
+    nextBilling: string;
+    amount: string;
+    period: string;
+  };
+  paymentHistory: Array<{
+    id: number;
+    date: string;
+    amount: string;
+    status: string;
+    invoice: string;
+    planName: string;
+  }>;
+  paymentMethod: {
+    last4: string;
+    expiryDate: string;
+    type: string;
+  };
+  usageLimits: {
+    habits: {
+      used: number;
+      total: number;
+    };
+    storage: {
+      used: number;
+      total: number;
+    };
+  };
+  isYearly: boolean;
+  setIsYearly: (yearly: boolean) => void;
+  pricingPlans: typeof PRICING_PLANS;
+  updatePaymentMethod: (method: {
+    last4: string;
+    expiryDate: string;
+    type: string;
+  }) => void;
+  updateSubscription: (details: {
+    plan: string;
+    status: string;
+    nextBilling: string;
+    amount: string;
+    period: string;
+  }) => void;
+  updateUsageLimits: (habitsCount: number) => void;
+  addPaymentHistory: (payment: {
+    planType: "monthly" | "yearly";
+    status: string;
+    type: "subscription" | "cancellation";
+  }) => void;
+  upgradeSubscription: () => void;
+  cancelSubscription: () => void;
+  isUpgradeDialogOpen: boolean;
+  setIsUpgradeDialogOpen: (open: boolean) => void;
 }
 
 const colors = [
@@ -152,26 +219,27 @@ export const useHabitStore = create<HabitStore>()(
       },
 
       // Business Logic
-      addHabit: (name) => {
-        const { habits } = get();
-        if (name.trim()) {
-          const newHabit = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: name.trim(),
-            completedDates: [],
-            pomodoroSessions: 0,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            emoji: emojis[Math.floor(Math.random() * emojis.length)],
-            streak: 0,
-          };
-          set({
-            habits: [...habits, newHabit],
-            newHabitName: "",
-            isNewHabitOpen: false,
-          });
-        }
-      },
-
+      addHabit: (habit: Habit) =>
+        set((state) => {
+          const newHabits = [...(state.habits || []), habit];
+          // Update billing store usage limits
+          useBillingStore.getState().updateUsageLimits(newHabits.length);
+          return { habits: newHabits };
+        }),
+      removeHabit: (habitId: string) =>
+        set((state) => {
+          const newHabits = state.habits?.filter((h) => h.id !== habitId) || [];
+          // Update billing store usage limits
+          useBillingStore.getState().updateUsageLimits(newHabits.length);
+          return { habits: newHabits };
+        }),
+      updateHabit: (habitId: string, updates: Partial<Habit>) =>
+        set((state) => ({
+          habits:
+            state.habits?.map((habit) =>
+              habit.id === habitId ? { ...habit, ...updates } : habit
+            ) || [],
+        })),
       toggleHabitCompletion: (habitId, targetDate) => {
         const { habits } = get();
         const updatedHabits = habits.map((habit) => {
@@ -277,3 +345,138 @@ export const useHabitStore = create<HabitStore>()(
     }
   )
 );
+
+declare global {
+  interface Window {
+    openUpgradeDialog?: () => void;
+  }
+}
+
+const getInitialHabitsCount = () => {
+  const habitStore = useHabitStore.getState();
+  return habitStore.habits?.length || 0;
+};
+
+export const useBillingStore = create<BillingState>()(
+  persist(
+    (set) => ({
+      subscriptionDetails: {
+        plan: "Pro",
+        status: "active",
+        nextBilling: "Dec 1, 2023",
+        amount: "$9.99",
+        period: "monthly",
+      },
+      paymentHistory: [
+        {
+          id: 1,
+          date: "Nov 1, 2023",
+          amount: "$9.99",
+          status: "paid",
+          invoice: "#INV-2023-001",
+          planName: "Monthly Pro",
+        },
+        {
+          id: 2,
+          date: "Oct 1, 2023",
+          amount: "$9.99",
+          status: "paid",
+          invoice: "#INV-2023-002",
+          planName: "Monthly Pro",
+        },
+      ],
+      paymentMethod: {
+        last4: "4242",
+        expiryDate: "12/24",
+        type: "visa",
+      },
+
+      usageLimits: {
+        habits: {
+          used: getInitialHabitsCount(),
+          total: 6,
+        },
+        storage: {
+          used: getInitialHabitsCount(), // Sync with number of habits
+          total: 20,
+        },
+      },
+      isYearly: false,
+      setIsYearly: (yearly) => set({ isYearly: yearly }),
+      pricingPlans: PRICING_PLANS,
+      updatePaymentMethod: (method) => set({ paymentMethod: method }),
+      updateSubscription: (details) => set({ subscriptionDetails: details }),
+      updateUsageLimits: (habitsCount) =>
+        set((state) => ({
+          usageLimits: {
+            habits: {
+              used: habitsCount,
+              total: state.usageLimits.habits.total,
+            },
+          },
+        })),
+      addPaymentHistory: (payment) =>
+        set((state) => {
+          const plan = state.pricingPlans[payment.planType];
+          const amount = payment.type === "cancellation" ? 0 : plan.price;
+
+          return {
+            paymentHistory: [
+              {
+                id: Math.random().toString(36).substr(2, 9),
+                date: new Date().toLocaleDateString(),
+                amount: `$${amount.toFixed(2)}`,
+                status: payment.status,
+                invoice: `#INV-${new Date().getFullYear()}-${String(
+                  state.paymentHistory.length + 1
+                ).padStart(3, "0")}`,
+                planName:
+                  payment.type === "cancellation"
+                    ? "Subscription Cancelled"
+                    : plan.name,
+              },
+              ...state.paymentHistory,
+            ],
+          };
+        }),
+      upgradeSubscription: () =>
+        set((state) => {
+          const planType = state.isYearly ? "yearly" : "monthly";
+          const plan = state.pricingPlans[planType];
+
+          return {
+            subscriptionDetails: {
+              ...state.subscriptionDetails,
+              plan: "Pro",
+              status: "active",
+              amount: `$${plan.price.toFixed(2)}`,
+              period: plan.period,
+              nextBilling: new Date(
+                new Date().setMonth(
+                  new Date().getMonth() + (state.isYearly ? 12 : 1)
+                )
+              ).toLocaleDateString(),
+            },
+          };
+        }),
+      cancelSubscription: () =>
+        set((state) => ({
+          subscriptionDetails: {
+            ...state.subscriptionDetails,
+            status: "cancelled",
+          },
+        })),
+      isUpgradeDialogOpen: false,
+      setIsUpgradeDialogOpen: (open) => set({ isUpgradeDialogOpen: open }),
+    }),
+    {
+      name: "billing-storage",
+    }
+  )
+);
+
+// Subscribe to habit store changes to update usage limits
+useHabitStore.subscribe((state) => {
+  const habitsCount = state.habits?.length || 0;
+  useBillingStore.getState().updateUsageLimits(habitsCount);
+});

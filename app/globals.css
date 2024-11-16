@@ -52,6 +52,21 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Premium Analytics Colors */
+    --primary-hue: 222;
+    --premium-gradient: linear-gradient(
+      135deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--primary-foreground)) 100%
+    );
+
+    /* Chart Colors */
+    --chart-1: 222 80% 60%;
+    --chart-2: 200 80% 60%;
+    --chart-3: 150 80% 60%;
+    --chart-4: 280 80% 60%;
+    --chart-5: 320 80% 60%;
   }
 
   .dark {
@@ -91,6 +106,14 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    /* Premium Analytics Colors - Dark Mode */
+    --primary-hue: 222;
+    --premium-gradient: linear-gradient(
+      135deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--secondary)) 100%
+    );
   }
 }
 
@@ -121,6 +144,66 @@
   .hover-scale {
     @apply transition-transform duration-200 hover:scale-105;
   }
+
+  /* Premium Button Styles */
+  .button-premium {
+    @apply bg-gradient-to-r from-primary to-purple-600 text-primary-foreground 
+           hover:from-primary/90 hover:to-purple-600/90 
+           shadow-lg hover:shadow-xl hover:shadow-primary/20 
+           transition-all duration-300 relative overflow-hidden;
+  }
+
+  .button-premium::after {
+    @apply content-[''] absolute inset-0 
+           bg-gradient-to-r from-transparent via-white/20 to-transparent
+           translate-x-[-200%] animate-shimmer;
+  }
+
+  /* Premium Card Styles */
+  .card-premium {
+    @apply bg-gradient-to-br from-background/95 to-background/90 
+           backdrop-blur-md border border-primary/20 
+           shadow-lg hover:shadow-premium hover:border-primary/30 
+           transition-all duration-500
+           relative overflow-hidden;
+  }
+
+  .card-premium::before {
+    @apply content-[''] absolute inset-0 
+           bg-gradient-to-br from-primary/5 to-purple-600/5 
+           opacity-0 hover:opacity-100 transition-opacity duration-500;
+  }
+
+  /* Heatmap Cell Styles */
+  .heatmap-cell {
+    @apply transition-all duration-200 ease-out 
+           hover:scale-150 hover:z-50 
+           cursor-pointer shadow-sm hover:shadow-lg
+           ring-offset-background;
+  }
+
+  /* Heatmap Tooltip */
+  .heatmap-tooltip {
+    @apply absolute invisible group-hover:visible z-50 w-max
+           bg-popover/95 backdrop-blur-sm border border-border
+           rounded-lg shadow-xl p-3
+           transform -translate-y-2 opacity-0 
+           group-hover:opacity-100 group-hover:-translate-y-1 
+           transition-all duration-200;
+  }
+}
+
+@layer utilities {
+  .grid-cols-53 {
+    grid-template-columns: repeat(53, minmax(16px, 1fr));
+  }
+
+  .shadow-premium {
+    --tw-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --tw-shadow-colored: 0 25px 50px -12px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+      var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
 }
 
 /* Custom Animations */
@@ -138,6 +221,40 @@
 
 .float-animation {
   animation: float 3s ease-in-out infinite;
+}
+
+/* Premium Animations */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-200%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2.5s infinite;
+}
+
+/* Custom Ping Animation */
+@keyframes ping-slow {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.animate-ping-slow {
+  animation: ping-slow 3s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 /* Smooth Transitions */

@@ -19,7 +19,12 @@ import {
   Settings,
   Plus,
   Sparkles,
-  MoreVertical,
+  Crown,
+  Trophy,
+  Zap,
+  Target,
+  TrendingUp,
+  User2Icon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,17 +36,33 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "next-themes";
+import {
+  User,
+  Bell,
+  CreditCard,
+  HelpCircle,
+  MessageSquare,
+  FileText,
+  Shield,
+  LogOut,
+} from "lucide-react";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { setIsNewHabitOpen } = useHabitStore();
+  const { setIsNewHabitOpen, isPro } = useHabitStore();
   const { setTheme } = useTheme();
+
+  const handleUpgradeClick = () => {
+    // Call the global openUpgradeDialog function
+    (window as any).openUpgradeDialog?.();
+  };
 
   const navigationItems = [
     { href: "/home", label: "Home", icon: Home },
     { href: "/analytics", label: "Analytics", icon: BarChart2 },
     { href: "/calendar", label: "Calendar", icon: Calendar },
     { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/profile/settings", label: "Profile", icon: User2Icon },
   ];
 
   return (
@@ -58,111 +79,243 @@ export function AppSidebar() {
               everyday
             </h1>
           </div>
+        </div>
+      </SidebarHeader>
 
-          {/* User Profile Dropdown */}
+      <SidebarContent className="px-2 flex-1">
+        <SidebarGroup className="space-y-1">
+          {/* Quick Actions */}
+          <div className="px-4 py-2 mb-2">
+            <Button
+              onClick={() => setIsNewHabitOpen(true)}
+              className="w-full bg-primary/10 hover:bg-primary/15 text-primary font-medium"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Habit
+            </Button>
+          </div>
+
+          {/* Navigation Items */}
+          {navigationItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-2 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors ${
+                pathname === item.href
+                  ? "text-primary bg-primary/5 font-medium"
+                  : ""
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+              {item.href === "/analytics" && !isPro && (
+                <span className="ml-auto flex items-center gap-0.5 text-xs text-violet-500">
+                  <Zap className="w-3 h-3" />
+                  Pro
+                </span>
+              )}
+            </Link>
+          ))}
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarGroup className="space-y-1">
+        {/* <SidebarGroupLabel>Help</SidebarGroupLabel> */}
+        {/* Quick Stats - Only for Pro Users */}
+        {isPro && (
+          <div className="px-4 py-3 mb-2">
+            <div className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-xl p-3 border border-violet-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium flex items-center gap-1">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  Pro Stats
+                </span>
+                <span className="text-xs bg-violet-500/20 text-violet-500 px-2 py-0.5 rounded-full">
+                  Premium
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-lg p-2">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Target className="w-3 h-3" />
+                    Streak
+                  </div>
+                  <p className="text-lg font-semibold">12 days</p>
+                </div>
+                <div className="bg-white/5 rounded-lg p-2">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <TrendingUp className="w-3 h-3" />
+                    Progress
+                  </div>
+                  <p className="text-lg font-semibold">87%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </SidebarGroup>
+
+      <SidebarFooter className="mt-auto border-t border-border/50">
+        
+        {/* Upgrade Button */}
+        {!isPro && (
+          <div className="px-4 py-4">
+            <Button
+              onClick={handleUpgradeClick}
+              className="w-full bg-gradient-to-r from-violet-600 via-violet-500 to-purple-500 hover:from-violet-500 hover:to-purple-400 text-white font-medium group relative overflow-hidden shadow-lg transition-all duration-300 hover:shadow-violet-500/25 hover:scale-[1.02]"
+            >
+              <div className="absolute inset-0 bg-white/20 group-hover:bg-white/30 transition-colors duration-300" />
+              <div className="relative flex items-center justify-center gap-2">
+                <Crown className="w-4 h-4 text-yellow-300" />
+                <span>Upgrade to Pro</span>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+            </Button>
+            <p className="text-xs text-center mt-2 text-muted-foreground">
+              Unlock unlimited habits & more
+            </p>
+          </div>
+        )}
+        <div className="p-4">
+          {isPro && (
+            <div className="mb-4 px-2 py-1.5 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-lg border border-violet-500/20 flex items-center justify-center gap-1">
+              <Crown className="w-4 h-4 text-yellow-500" />
+              <span className="text-xs font-medium text-violet-500">
+                Pro Member
+              </span>
+            </div>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-transparent border-border/50 border-[1px] hover:border-primary p-1 ">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg" alt="Profile" />
-                  <AvatarFallback className="text-primary">KJ</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="w-full border-border/50 border hover:bg-primary/5 p-2"
+              >
+                <div className="flex items-center gap-3 w-full">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="/placeholder.svg" alt="Profile" />
-                    <AvatarFallback>KJ</AvatarFallback>
+                    <AvatarFallback className="text-primary">KJ</AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col">
-                    <span className="font-medium">Kemo Jallow</span>
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-medium">Kemo Jallow</span>
                     <span className="text-xs text-muted-foreground">
-                      Member
+                      {isPro ? "Pro Member" : "Free Plan"}
                     </span>
                   </div>
                 </div>
-              </DropdownMenuLabel>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className=" ml-8 w-64">
+              <DropdownMenuLabel>Account</DropdownMenuLabel>
+              <DropdownMenuItem className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Profile Settings
+              </DropdownMenuItem>
+              <Link href="/profile/notifications">
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <Bell className="w-4 h-4" />
+                  Notifications
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/profile/billing">
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  Billing
+                </DropdownMenuItem>
+              </Link>
+
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Appearance</DropdownMenuLabel>
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex w-full items-center gap-2 rounded-lg border p-1">
                   <button
                     onClick={() => setTheme("light")}
-                    className="flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium ring-offset-background hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+                    className="flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium hover:bg-muted"
                   >
                     Light
                   </button>
                   <button
                     onClick={() => setTheme("dark")}
-                    className="flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium ring-offset-background hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+                    className="flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium hover:bg-muted"
                   >
                     Dark
                   </button>
-                  <button
-                    onClick={() => setTheme("system")}
-                    className="flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium ring-offset-background hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-                  >
-                    System
-                  </button>
                 </div>
               </div>
+
+              {!isPro && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer px-3 py-2.5"
+                    onClick={handleUpgradeClick}
+                  >
+                    <div className="w-full bg-gradient-to-r from-violet-600 via-violet-500 to-purple-500 text-white rounded-lg px-3 py-2 group relative overflow-hidden">
+                      <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors duration-300" />
+                      <div className="relative flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-yellow-300" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">
+                            Upgrade to Pro
+                          </span>
+                          <span className="text-xs text-white/80">
+                            Unlock all premium features
+                          </span>
+                        </div>
+                        <div className="ml-auto bg-white/20 rounded-md px-2 py-0.5 text-xs">
+                          20% OFF
+                        </div>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                </>
+              )}
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem>News</DropdownMenuItem>
-              {/* <DropdownMenuItem>Creator Hub</DropdownMenuItem> */}
-              <DropdownMenuItem>Help centre & FAQ</DropdownMenuItem>
-              <DropdownMenuItem>Feature Requests</DropdownMenuItem>
+              <DropdownMenuLabel>Support</DropdownMenuLabel>
+              <Link href="/help">
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+                  <HelpCircle className="w-4 h-4" />
+                  Help Center
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/feedback">
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+                  <MessageSquare className="w-4 h-4" />
+                  Feedback
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/whats-new">
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+                  <Sparkles className="w-4 h-4" />
+                  What's New
+                </DropdownMenuItem>
+              </Link>
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Terms of Use</DropdownMenuItem>
-              <DropdownMenuItem>Privacy Policy</DropdownMenuItem>
-              {/* <DropdownMenuItem>Community Policies</DropdownMenuItem> */}
+              <DropdownMenuLabel>Legal</DropdownMenuLabel>
+              <Link href="/terms" target="_blank" rel="noopener noreferrer">
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+                  <FileText className="w-4 h-4" />
+                  Terms of Service
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+                  <Shield className="w-4 h-4" />
+                  Privacy Policy
+                </DropdownMenuItem>
+              </Link>
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem className="text-red-600 flex items-center gap-2 cursor-pointer">
+                <LogOut className="w-4 h-4" />
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </SidebarHeader>
-
-      <SidebarContent className="px-2">
-        <SidebarGroup className="space-y-1">
-          {navigationItems.map((item) => {
-            const IconComponent = item.icon;
-            const isActive = pathname === item.href;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group
-                  ${
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-primary font-medium"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  }`}
-              >
-                <IconComponent
-                  className={`w-5 h-5 ${
-                    isActive ? "text-violet-500" : "text-muted-foreground"
-                  }`}
-                />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="px-4 pb-6 relative z-50">
-        <Button
-          onClick={() => setIsNewHabitOpen(true)}
-          className="w-full bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:opacity-90 rounded-xl h-12 shadow-lg shadow-violet-500/20 transition-all duration-200 hover:shadow-violet-500/30 relative z-50"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Add New Habit
-        </Button>
       </SidebarFooter>
     </Sidebar>
   );

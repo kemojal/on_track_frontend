@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useHabitStore } from "@/lib/store";
+import { usePremiumStore } from "@/lib/store";
 import {
   BarChart,
   Bar,
@@ -25,6 +26,7 @@ import {
   Calendar as CalendarIcon,
   Activity,
   BarChart2,
+  Lock,
 } from "lucide-react";
 import {
   Card,
@@ -43,7 +45,25 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import {
+  format,
+  subDays,
+  eachDayOfInterval,
+  isWithinInterval,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  addDays,
+  getWeek,
+} from "date-fns";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+
 // Define chart colors using CSS variables
 const CHART_COLORS = [
   "hsl(var(--chart-1))",
@@ -105,6 +125,306 @@ const cardVariants = {
   tap: {
     scale: 0.98,
   },
+};
+
+const ViewToggle = ({ view, onViewChange }) => (
+  <div className="flex space-x-2 mb-4">
+    {["week", "month", "year"].map((v) => (
+      <Button
+        key={v}
+        variant={view === v ? "default" : "outline"}
+        onClick={() => onViewChange(v)}
+        className="capitalize"
+      >
+        {v}
+      </Button>
+    ))}
+  </div>
+);
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const HeatmapCell = ({ value, max, date, habits }) => {
+  const intensity = value ? Math.min((value / max) * 100, 100) : 0;
+  const level = Math.floor(intensity / 20); // 0-4 levels
+
+  // Get completed habits for this date
+  const completedHabits = habits.filter((habit) =>
+    habit.completedDates.some(
+      (d) => format(new Date(d), "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
+    )
+  );
+
+  return (
+    <div className="relative group">
+      <div
+        className={cn(
+          "w-3 h-3 rounded-sm transition-all heatmap-cell",
+          level === 0 && "bg-primary/5 dark:bg-primary/10",
+          level === 1 && "bg-primary/20 dark:bg-primary/30",
+          level === 2 && "bg-primary/40 dark:bg-primary/50",
+          level === 3 && "bg-primary/60 dark:bg-primary/70",
+          level === 4 && "bg-primary/80 dark:bg-primary",
+          "hover:ring-2 hover:ring-primary/50 hover:ring-offset-1"
+        )}
+      />
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+        <div className="bg-popover/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-xl border border-border">
+          <div className="font-semibold text-sm">
+            {format(date, "MMMM d, yyyy")}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {value} {value === 1 ? "habit" : "habits"} completed
+          </div>
+          {completedHabits.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {completedHabits.map((habit) => (
+                <div
+                  key={habit.id}
+                  className="flex items-center gap-1.5 text-xs"
+                >
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: habit.color || "currentColor" }}
+                  />
+                  {habit.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover/95 mx-auto" />
+      </div>
+    </div>
+  );
+};
+
+const PremiumAnalytics = ({ habits }) => {
+  const [view, setView] = useState("year");
+  const router = useRouter();
+  const { isPro } = useHabitStore();
+
+  const getDateRange = () => {
+    const end = new Date();
+    const start = {
+      week: startOfWeek(end),
+      month: startOfMonth(end),
+      year: subDays(end, 365),
+    }[view];
+    return { start, end };
+  };
+
+  const heatmapData = useMemo(() => {
+    if (!isPro) return [];
+
+    const { start, end } = getDateRange();
+    const days = eachDayOfInterval({ start, end });
+
+    // Group days by week for GitHub-style layout
+    const weeks = days.reduce((acc, day) => {
+      const weekNum = format(day, "w");
+      if (!acc[weekNum]) {
+        acc[weekNum] = [];
+      }
+
+      // Count unique habits completed on this day
+      const completedHabits = habits.filter((habit) =>
+        habit.completedDates.some(
+          (d) => format(new Date(d), "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
+        )
+      );
+
+      acc[weekNum].push({
+        date: day,
+        value: completedHabits.length,
+        habits: completedHabits,
+      });
+      return acc;
+    }, {});
+
+    return Object.values(weeks);
+  }, [habits, view, isPro]);
+
+  const maxValue = Math.max(...heatmapData.flat().map((d) => d.value), 1);
+
+  if (!isPro) {
+    return (
+      <Card className="col-span-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="w-5 h-5" />
+            Premium Analytics
+          </CardTitle>
+          <CardDescription>
+            Unlock beautiful GitHub-style habit tracking visualizations and
+            advanced analytics
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
+          <div className="text-center max-w-md">
+            <h3 className="text-lg font-semibold mb-2">
+              Visualize Your Progress
+            </h3>
+            <p className="text-muted-foreground">
+              See your habit completion patterns with our beautiful contribution
+              graph, inspired by GitHub's design
+            </p>
+          </div>
+          <Button
+            onClick={() => router.push("/profile/billing")}
+            variant="premium"
+            className="button-premium"
+          >
+            Upgrade to Premium
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="col-span-full card-premium overflow-hidden">
+      <CardHeader className="border-b border-border/50 bg-gradient-to-br from-background via-background/95 to-background/90">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-primary animate-pulse" />
+              Premium Analytics
+            </CardTitle>
+            <CardDescription>
+              Track your habit consistency with our beautiful contribution graph
+            </CardDescription>
+          </div>
+          <ViewToggle view={view} onViewChange={setView} />
+        </div>
+      </CardHeader>
+      <CardContent className="p-8">
+        <div className="relative pl-8">
+          {/* Weekday Labels */}
+          <div className="absolute left-0 top-10 grid grid-rows-7 gap-[2px] text-xs font-medium text-muted-foreground/70 h-[124px]">
+            {WEEKDAYS.map((day, i) => (
+              <div key={day} className="h-[16px] flex items-center">
+                {i % 2 === 0 ? day.slice(0, 1) : ''} {/* Show only first letter every other day */}
+              </div>
+            ))}
+          </div>
+          
+          {/* Month Labels */}
+          <div className="flex mb-2 text-xs text-muted-foreground/70 font-medium h-6">
+            <div className="w-8" /> {/* Spacer for weekday labels */}
+            <div className="flex-1 relative">
+              {MONTHS.map((month, i) => {
+                const firstDayOfMonth = new Date(new Date().getFullYear(), i, 1);
+                const weekOfYear = getWeek(firstDayOfMonth);
+                const position = ((weekOfYear - 1) / 53) * 100;
+                
+                return (
+                  <div
+                    key={month}
+                    className="absolute text-muted-foreground/70 hover:text-muted-foreground/90 transition-colors"
+                    style={{
+                      left: `${position}%`,
+                      transform: 'translateX(-50%)',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}
+                  >
+                    {month.slice(0, 3)}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Grid Container */}
+          <div className="relative bg-card/30 rounded-lg p-4">
+            {/* Contribution Grid */}
+            <div className="grid grid-cols-53 gap-[2px]">
+              {Array.from({ length: 7 }, (_, rowIndex) => (
+                <React.Fragment key={`row-${rowIndex}`}>
+                  {Array.from({ length: 53 }, (_, colIndex) => {
+                    const currentDate = addDays(
+                      startOfYear(new Date()),
+                      colIndex * 7 + rowIndex
+                    );
+                    
+                    const weekData = heatmapData.find(week =>
+                      week.some(day =>
+                        format(day.date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd')
+                      )
+                    );
+                    
+                    const dayData = weekData?.find(day =>
+                      format(day.date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd')
+                    );
+
+                    return (
+                      <motion.div
+                        key={`cell-${rowIndex}-${colIndex}`}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{
+                          delay: (colIndex * 7 + rowIndex) * 0.0005,
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 30
+                        }}
+                        className="w-[16px] h-[16px]"
+                        style={{
+                          gridRow: rowIndex + 1,
+                          gridColumn: colIndex + 1
+                        }}
+                      >
+                        <HeatmapCell
+                          value={dayData?.value || 0}
+                          max={maxValue}
+                          date={currentDate}
+                          habits={habits}
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-6 flex items-center justify-end gap-2 text-xs text-muted-foreground/70">
+              <span className="font-medium">Less</span>
+              {[0, 1, 2, 3, 4].map((level) => (
+                <div
+                  key={level}
+                  className={cn(
+                    "w-[16px] h-[16px] rounded-sm transition-colors duration-200",
+                    level === 0 && "bg-primary/5 dark:bg-primary/10 hover:bg-primary/10",
+                    level === 1 && "bg-primary/20 dark:bg-primary/30 hover:bg-primary/25",
+                    level === 2 && "bg-primary/40 dark:bg-primary/50 hover:bg-primary/45",
+                    level === 3 && "bg-primary/60 dark:bg-primary/70 hover:bg-primary/65",
+                    level === 4 && "bg-primary/80 dark:bg-primary hover:bg-primary/85"
+                  )}
+                />
+              ))}
+              <span className="font-medium">More</span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default function AnalyticsDashboard() {
@@ -676,6 +996,7 @@ export default function AnalyticsDashboard() {
           </ScrollArea>
         </TabsContent>
       </Tabs>
+      <PremiumAnalytics habits={habits} />
     </motion.div>
   );
 }

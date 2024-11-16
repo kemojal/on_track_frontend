@@ -1,16 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter} from "./ui/dialog";
+  DialogFooter,
+} from "./ui/dialog";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { useHabitStore } from "@/lib/store";
-
+import { useHabitStore, useBillingStore } from "@/lib/store";
+import { Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import {
   Select,
@@ -22,7 +23,6 @@ import {
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
 import {
-  Sparkles,
   Palette,
   Settings,
   Sun,
@@ -32,10 +32,11 @@ import {
   CalendarDays,
   CalendarRange,
   Calendar,
+  Check,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 
 const colors = [
   "from-purple-500 to-pink-500",
@@ -47,12 +48,10 @@ const colors = [
 const emojis = ["✨", "🌟", "💫", "⭐️", "🎯", "🎨", "📚", "💪", "🧘‍♀️", "🏃‍♀️"];
 
 const NewHabitDialog = () => {
-  const {
-    isNewHabitOpen,
-    setIsNewHabitOpen,
-    habits,
-    setHabits,
-  } = useHabitStore();
+  const { isNewHabitOpen, setIsNewHabitOpen, addHabit, isPro } =
+    useHabitStore();
+
+  const { usageLimits, setIsUpgradeDialogOpen } = useBillingStore();
 
   const [selectedColor, setSelectedColor] = useState(colors[0]);
   const [selectedEmoji, setSelectedEmoji] = useState(emojis[0]);
@@ -64,9 +63,13 @@ const NewHabitDialog = () => {
   const [selectedDays, setSelectedDays] = useState([]);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
   const [notes, setNotes] = useState("");
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+
+  const canAddHabit =
+    isPro || usageLimits?.habits?.used < usageLimits?.habits?.total;
 
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);
@@ -82,24 +85,63 @@ const NewHabitDialog = () => {
         id: Math.random().toString(36).substr(2, 9),
         name: name.trim(),
         completedDates: [],
-        pomodoroSessions: 0,
-        color: selectedColor,
-        emoji: selectedEmoji,
-        streak: 0,
         timeOfDay,
         priority,
         repeatType,
-        selectedDays,
+        color: selectedColor,
+        emoji: selectedEmoji,
         reminderEnabled,
         reminderTime,
-        startDate,
-        endDate,
+        startDate: startDate?.toISOString(),
+        endDate: endDate?.toISOString(),
         notes,
       };
-      setHabits([...habits, newHabit]);
+
+      // Use the new addHabit function which will automatically update billing limits
+      addHabit(newHabit);
+
+      // Reset form
       setName("");
+      setTimeOfDay("");
+      setPriority("");
+      setRepeatType("");
+      setSelectedColor(colors[0]);
+      setSelectedEmoji(emojis[0]);
+      setReminderEnabled(false);
+      setReminderTime("");
+      setStartDate(undefined);
+      setEndDate(undefined);
+      setNotes("");
+
+      // Close dialog
       setIsNewHabitOpen(false);
     }
+  };
+
+  const handleSubmit = () => {
+    // Check limit again before submitting
+    if (!isPro && usageLimits?.habits?.used >= usageLimits?.habits?.total) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+
+    handleCreateHabit();
+  };
+
+  const onClose = () => {
+    setShowUpgradePrompt(false);
+    setIsNewHabitOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isPro && usageLimits?.habits?.used >= usageLimits?.habits?.total) {
+      setShowUpgradePrompt(true);
+    }
+  }, [isPro, usageLimits?.habits?.used, usageLimits?.habits?.total]);
+
+  const handleUpgradeClick = () => {
+    setIsNewHabitOpen(false);
+    setIsUpgradeDialogOpen(true);
   };
 
   const toggleSelectedDay = (day: number) => {
@@ -110,13 +152,56 @@ const NewHabitDialog = () => {
     }
   };
 
-  const handleSubmit = () => {
-    handleCreateHabit();
-  };
-
-  const onClose = () => {
-    setIsNewHabitOpen(false);
-  };
+  if (!isPro && showUpgradePrompt) {
+    return (
+      <Dialog open={isNewHabitOpen} onOpenChange={setIsNewHabitOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <div className="mx-auto w-12 h-12 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center mb-4">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <DialogTitle className="text-center text-xl">
+              Habit Limit Reached
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              <div className="space-y-2">
+                <p className="text-sm">
+                  You're currently using{" "}
+                  <span className="font-semibold text-purple-600 dark:text-purple-400">
+                    {usageLimits?.habits?.used}
+                  </span>{" "}
+                  out of{" "}
+                  <span className="font-semibold text-purple-600 dark:text-purple-400">
+                    {usageLimits?.habits?.total}
+                  </span>{" "}
+                  habits
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 h-11"
+              onClick={handleUpgradeClick}
+            >
+              Upgrade Now
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full h-11"
+              onClick={() => {
+                setShowUpgradePrompt(false);
+                setIsNewHabitOpen(false);
+              }}
+            >
+              Maybe Later
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isNewHabitOpen} onOpenChange={setIsNewHabitOpen}>
@@ -138,7 +223,7 @@ const NewHabitDialog = () => {
                 className="rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-950 data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400 data-[state=active]:shadow-sm transition-all"
               >
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
+                  <Palette className="w-4 h-4" />
                   Basic
                 </div>
               </TabsTrigger>
@@ -147,7 +232,7 @@ const NewHabitDialog = () => {
                 className="rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-950 data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400 data-[state=active]:shadow-sm transition-all"
               >
                 <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4" />
+                  <Settings className="w-4 h-4" />
                   Style
                 </div>
               </TabsTrigger>
@@ -156,7 +241,7 @@ const NewHabitDialog = () => {
                 className="rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-950 data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400 data-[state=active]:shadow-sm transition-all"
               >
                 <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
+                  <Sun className="w-4 h-4" />
                   Advanced
                 </div>
               </TabsTrigger>
@@ -185,34 +270,36 @@ const NewHabitDialog = () => {
                       <SelectValue placeholder="When do you want to do this?" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        value="morning"
-                        className="flex items-center gap-2"
-                      >
-                        <Sun className="w-4 h-4 text-orange-500" />
-                        Morning
-                      </SelectItem>
-                      <SelectItem
-                        value="afternoon"
-                        className="flex items-center gap-2"
-                      >
-                        <Sun className="w-4 h-4 text-yellow-500" />
-                        Afternoon
-                      </SelectItem>
-                      <SelectItem
-                        value="evening"
-                        className="flex items-center gap-2"
-                      >
-                        <Moon className="w-4 h-4 text-blue-500" />
-                        Evening
-                      </SelectItem>
-                      <SelectItem
-                        value="anytime"
-                        className="flex items-center gap-2"
-                      >
-                        <Clock className="w-4 h-4 text-purple-500" />
-                        Anytime
-                      </SelectItem>
+                      <div className="flex gap-2 p-2">
+                        <SelectItem
+                          value="morning"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg p-3 hover:bg-accent cursor-pointer"
+                        >
+                          <Sun className="w-4 h-4 text-orange-500" />
+                          Morning
+                        </SelectItem>
+                        <SelectItem
+                          value="afternoon"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg p-3 hover:bg-accent cursor-pointer"
+                        >
+                          <Sun className="w-4 h-4 text-yellow-500" />
+                          Afternoon
+                        </SelectItem>
+                        <SelectItem
+                          value="evening"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg p-3 hover:bg-accent cursor-pointer"
+                        >
+                          <Moon className="w-4 h-4 text-blue-500" />
+                          Evening
+                        </SelectItem>
+                        <SelectItem
+                          value="anytime"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg p-3 hover:bg-accent cursor-pointer"
+                        >
+                          <Clock className="w-4 h-4 text-purple-500" />
+                          Anytime
+                        </SelectItem>
+                      </div>
                     </SelectContent>
                   </Select>
                 </div>
@@ -304,27 +391,29 @@ const NewHabitDialog = () => {
                       <SelectValue placeholder="How often?" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        value="daily"
-                        className="flex items-center gap-2"
-                      >
-                        <CalendarDays className="w-4 h-4" />
-                        Daily
-                      </SelectItem>
-                      <SelectItem
-                        value="weekly"
-                        className="flex items-center gap-2"
-                      >
-                        <CalendarRange className="w-4 h-4" />
-                        Weekly
-                      </SelectItem>
-                      <SelectItem
-                        value="monthly"
-                        className="flex items-center gap-2"
-                      >
-                        <Calendar className="w-4 h-4" />
-                        Monthly
-                      </SelectItem>
+                      <div className="flex gap-2 p-2">
+                        <SelectItem
+                          value="daily"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg p-3 hover:bg-accent cursor-pointer"
+                        >
+                          <CalendarDays className="w-4 h-4" />
+                          Daily
+                        </SelectItem>
+                        <SelectItem
+                          value="weekly"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg p-3 hover:bg-accent cursor-pointer"
+                        >
+                          <CalendarRange className="w-4 h-4" />
+                          Weekly
+                        </SelectItem>
+                        <SelectItem
+                          value="monthly"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg p-3 hover:bg-accent cursor-pointer"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          Monthly
+                        </SelectItem>
+                      </div>
                     </SelectContent>
                   </Select>
                   {repeatType === "weekly" && (
@@ -381,29 +470,27 @@ const NewHabitDialog = () => {
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Date Range</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs text-gray-500 dark:text-gray-400">
-                        Start
-                      </Label>
-                      <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="h-11"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-500 dark:text-gray-400">
-                        End (Optional)
-                      </Label>
-                      <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="h-11"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-2">
+                    <DateTimePicker
+                      date={startDate}
+                      setDate={setStartDate}
+                      label="Start Date"
+                      placeholder="Start Date"
+                    />
+                    <DateTimePicker
+                      date={endDate}
+                      setDate={(date) => {
+                        // Only allow setting end date if it's after start date
+                        if (startDate && date && date < startDate) {
+                          return;
+                        }
+                        setEndDate(date);
+                      }}
+                      label="End Date (Optional)"
+                      placeholder="End Date"
+                      disabled={!startDate} // Disable end date picker until start date is selected
+                      fromDate={startDate} // Minimum selectable date is the start date
+                    />
                   </div>
                 </div>
 
@@ -427,7 +514,7 @@ const NewHabitDialog = () => {
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!name.trim()}
+            disabled={!name.trim() || !canAddHabit}
             className="h-11 bg-gradient-to-r from-purple-600 to-pink-600 text-white"
           >
             Create Habit
