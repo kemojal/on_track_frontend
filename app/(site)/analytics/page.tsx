@@ -515,13 +515,13 @@ export default function AnalyticsDashboard() {
   };
 
   // Metrics calculations
-  const totalCompletions = habits.reduce(
+  const totalCompletions = habits?.reduce(
     (acc, habit) => acc + habit.completedDates.length,
     0
   );
 
   const averageCompletionRate =
-    habits.reduce(
+    habits?.reduce(
       (acc, habit) =>
         acc +
         calculateCompletionRate(habit.completedDates, parseInt(timeRange)),
@@ -532,7 +532,7 @@ export default function AnalyticsDashboard() {
     ...habits.map((habit) => calculateStreak(habit.completedDates))
   );
 
-  const mostConsistentHabit = habits.reduce((prev, current) => {
+  const mostConsistentHabit = habits?.reduce((prev, current) => {
     const prevRate = calculateCompletionRate(
       prev.completedDates,
       parseInt(timeRange)

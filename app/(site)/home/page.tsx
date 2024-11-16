@@ -52,6 +52,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { is } from "date-fns/locale";
 
 // Animation variants
 const containerVariants = {
@@ -109,6 +110,7 @@ export default function Component() {
     deleteHabit,
     archiveHabit,
     changeHabitFrequency,
+    isPro,
   } = useHabitStore();
   const [theme, setTheme] = useState("light");
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -143,7 +145,8 @@ export default function Component() {
           </div>
           <div className="flex items-center gap-4">
             <SettingsDialog />
-            <ProDialog />
+
+            {!isPro && <ProDialog />}
           </div>
         </motion.header>
 

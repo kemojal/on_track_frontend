@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useRouter } from "next/navigation";
 
 const updates = [
   {
@@ -148,6 +149,7 @@ const item = {
 };
 
 export default function WhatsNewPage() {
+  const router = useRouter();
   const { isPro } = useHabitStore();
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
 
@@ -269,6 +271,16 @@ export default function WhatsNewPage() {
         </motion.div>
 
         {/* CTA Section */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            className="mb-4"
+            onClick={() => router.push("/home")}
+          >
+            ← Back to Home
+          </Button>
+        </div>
+
         {!isPro && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
