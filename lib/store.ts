@@ -87,6 +87,10 @@ interface HabitState {
   isPro: boolean;
   setIsPro: (isPro: boolean) => void;
   habits: Habit[];
+
+  isNewHabitOpen: boolean;
+  setIsNewHabitOpen: (isOpen: boolean) => void;
+
   streakHistory?: number[];
   bestStreak?: number;
   startDate: Date;
@@ -205,14 +209,17 @@ interface BillingState {
   setIsUpgradeDialogOpen: (open: boolean) => void;
 }
 
-const colors = [
-  "from-purple-500 to-pink-500",
-  "from-blue-500 to-cyan-500",
-  "from-green-500 to-emerald-500",
-  "from-yellow-500 to-orange-500",
-];
-
-const emojis = ["✨", "🌟", "💫", "⭐️", "🎯", "🎨", "📚", "💪", "🧘‍♀️", "🏃‍♀️"];
+interface TimeTrackingState {
+  isTracking: boolean;
+  elapsed: number;
+  selectedHabit: Habit | null;
+  showTimeTrackingSheet: boolean;
+  startTimeTracking: () => void;
+  stopTimeTracking: () => void;
+  setShowTimeTrackingSheet: (show: boolean) => void;
+  updateElapsed: (elapsed: number) => void;
+  setSelectedHabit: (habit: Habit | null) => void;
+}
 
 const defaultPomodoroSettings: PomodoroSettings = {
   workDuration: 25,
@@ -227,6 +234,8 @@ export const useHabitStore = create<HabitState>()(
       isPro: false,
       setIsPro: (isPro) => set({ isPro }),
       habits: [],
+      isNewHabitOpen: false,
+      setIsNewHabitOpen: (isOpen) => set({ isNewHabitOpen: isOpen }),
       streakHistory: [],
       bestStreak: 0,
       startDate: (() => {
@@ -415,14 +424,17 @@ export const useHabitStore = create<HabitState>()(
         });
       },
 
-      getTimeProgress: (habitId: string, period: "daily" | "weekly" | "monthly") => {
+      getTimeProgress: (
+        habitId: string,
+        period: "daily" | "weekly" | "monthly"
+      ) => {
         const sessions = get().getDailySessions(habitId);
         const now = new Date();
         let current = 0;
         let target = 0;
 
         // Get the habit's time tracking settings
-        const habit = get().habits.find(h => h.id === habitId);
+        const habit = get().habits.find((h) => h.id === habitId);
         if (!habit?.timeTracking?.target) {
           return { current: 0, target: 0, percentage: 0 };
         }
@@ -430,7 +442,10 @@ export const useHabitStore = create<HabitState>()(
         switch (period) {
           case "daily":
             current = sessions
-              .filter(s => new Date(s.startTime).toDateString() === now.toDateString())
+              .filter(
+                (s) =>
+                  new Date(s.startTime).toDateString() === now.toDateString()
+              )
               .reduce((sum, s) => sum + s.duration, 0);
             target = habit.timeTracking.target.daily || 0;
             break;
@@ -438,14 +453,14 @@ export const useHabitStore = create<HabitState>()(
             const weekStart = new Date(now);
             weekStart.setDate(now.getDate() - now.getDay());
             current = sessions
-              .filter(s => new Date(s.startTime) >= weekStart)
+              .filter((s) => new Date(s.startTime) >= weekStart)
               .reduce((sum, s) => sum + s.duration, 0);
             target = habit.timeTracking.target.weekly || 0;
             break;
           case "monthly":
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
             current = sessions
-              .filter(s => new Date(s.startTime) >= monthStart)
+              .filter((s) => new Date(s.startTime) >= monthStart)
               .reduce((sum, s) => sum + s.duration, 0);
             target = habit.timeTracking.target.monthly || 0;
             break;
@@ -628,86 +643,27 @@ export const useHabitStore = create<HabitState>()(
   )
 );
 
+export const useTimeTrackingStore = create<TimeTrackingState>()(
+  persist(
+    (set) => ({
+      isTracking: false,
+      elapsed: 0,
+      selectedHabit: null,
+      showTimeTrackingSheet: false,
+      startTimeTracking: () => set({ isTracking: true }),
+      stopTimeTracking: () => set({ isTracking: false, elapsed: 0 }),
+      setShowTimeTrackingSheet: (show) => set({ showTimeTrackingSheet: show }),
+      updateElapsed: (elapsed) => set({ elapsed }),
+      setSelectedHabit: (habit) => set({ selectedHabit: habit }),
+    }),
+    {
+      name: "time-tracking-storage",
+    }
+  )
+);
+
 function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
-}
-
-function calculateStats(
-  sessions: {
-    id: string;
-    date: string;
-    duration: number;
-    type: "regular" | "pomodoro";
-    phase?: "work" | "break" | "longBreak";
-    notes?: string;
-    completed: boolean;
-    targetMet: boolean;
-  }[]
-): TimeTracking["stats"] {
-  const totalSessions = sessions.length;
-  const totalTimeSpent = sessions.reduce(
-    (acc, session) => acc + session.duration,
-    0
-  );
-  const completedPomodoros = sessions.filter(
-    (s) => s.type === "pomodoro" && s.completed
-  ).length;
-  const averageSessionLength =
-    totalSessions > 0 ? totalTimeSpent / totalSessions : 0;
-
-  return {
-    totalSessions,
-    totalTimeSpent,
-    completedPomodoros,
-    averageSessionLength,
-  };
-}
-
-function calculateStreak(
-  sessions: {
-    id: string;
-    date: string;
-    duration: number;
-    type: "regular" | "pomodoro";
-    phase?: "work" | "break" | "longBreak";
-    notes?: string;
-    completed: boolean;
-    targetMet: boolean;
-  }[]
-): TimeTracking["streakData"] {
-  if (sessions.length === 0) {
-    return { currentStreak: 0, longestStreak: 0 };
-  }
-
-  const dates = sessions.map((s) => s.date.split("T")[0]);
-  const uniqueDates = [...new Set(dates)].sort();
-  let currentStreak = 0;
-  let longestStreak = 0;
-  let streak = 0;
-
-  for (let i = 0; i < uniqueDates.length; i++) {
-    const current = new Date(uniqueDates[i]);
-    const prev = i > 0 ? new Date(uniqueDates[i - 1]) : current;
-    const diffDays = Math.floor(
-      (current.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    if (diffDays <= 1) {
-      streak++;
-      if (streak > longestStreak) {
-        longestStreak = streak;
-      }
-    } else {
-      streak = 1;
-    }
-  }
-
-  currentStreak = streak;
-  return {
-    currentStreak,
-    longestStreak,
-    lastTrackedDate: uniqueDates[uniqueDates.length - 1],
-  };
 }
 
 declare global {

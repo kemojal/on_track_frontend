@@ -57,6 +57,8 @@ import {
 import { is } from "date-fns/locale";
 import { TimeTrackingCard } from "@/components/TimeTrackingCard";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
+import { useTimeTrackingStore } from "@/lib/store";
 
 // Animation variants
 const containerVariants = {
@@ -120,8 +122,24 @@ export default function Component() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isTimeTrackingOpen, setIsTimeTrackingOpen] = useState(false);
+  const {
+    isTracking,
+    elapsed,
+    selectedHabit,
+    showTimeTrackingSheet,
+    setShowTimeTrackingSheet,
+  } = useTimeTrackingStore();
+
   const dates = getDatesInRange(startDate, 15);
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secondsRemaining = seconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${secondsRemaining.toString().padStart(2, "0")}`;
+  };
 
   return (
     <motion.div
@@ -159,17 +177,32 @@ export default function Component() {
             variants={itemVariants}
             className="flex justify-end w-full"
           >
-            <Button
-              onClick={() => setIsTimeTrackingOpen(true)}
-              className="bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl px-6 py-6 rounded-2xl group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
-                  <Timer className="w-5 h-5" />
+            {isTracking && !showTimeTrackingSheet && (
+              <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
+                <div className="relative w-5 h-5">
+                  <CircularProgressbar
+                    value={isTracking ? (elapsed / (25 * 60)) * 100 : 0}
+                    styles={buildStyles({
+                      pathColor: selectedHabit?.color || "var(--primary)",
+                      trailColor: "var(--muted)",
+                      strokeLinecap: "round",
+                    })}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                  </div>
                 </div>
-                <span className="font-medium">Time Tracking</span>
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <span className="text-sm font-medium">
+                  {formatTime(elapsed)}
+                </span>
               </div>
+            )}
+            <Button
+              onClick={() => setShowTimeTrackingSheet(true)}
+              className="gap-2"
+            >
+              <Timer className="w-4 h-4" />
+              Time Tracking
             </Button>
           </motion.div>
 
@@ -464,14 +497,7 @@ export default function Component() {
 
       <NewHabitDialog />
 
-      <Sheet open={isTimeTrackingOpen} onOpenChange={setIsTimeTrackingOpen} >
-        <SheetContent
-          side="right"
-          className="w-[800px] p-0 bg-background/95 backdrop-blur-xl m-4 rounded-2xl border border-gray-200/30 dark:border-gray-800/30 shadow-xl h-[calc(100vh-32px)]"
-        >
-          <TimeTrackingCard />
-        </SheetContent>
-      </Sheet>
+      <TimeTrackingCard />
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
