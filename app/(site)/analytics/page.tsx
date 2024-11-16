@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useHabitStore } from "@/lib/store";
-import { usePremiumStore } from "@/lib/store";
+
 import {
   BarChart,
   Bar,
@@ -27,6 +27,10 @@ import {
   Activity,
   BarChart2,
   Lock,
+  Sparkles,
+  ChartBar,
+  Download,
+  ArrowRight,
 } from "lucide-react";
 import {
   Card,
@@ -63,6 +67,7 @@ import {
 } from "date-fns";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import AdvancedAnalyticsDashboard from "@/components/AdvancedAnalyticsDashboard";
 
 // Define chart colors using CSS variables
 const CHART_COLORS = [
@@ -318,29 +323,34 @@ const PremiumAnalytics = ({ habits }) => {
           <div className="absolute left-0 top-10 grid grid-rows-7 gap-[2px] text-xs font-medium text-muted-foreground/70 h-[124px]">
             {WEEKDAYS.map((day, i) => (
               <div key={day} className="h-[16px] flex items-center">
-                {i % 2 === 0 ? day.slice(0, 1) : ''} {/* Show only first letter every other day */}
+                {i % 2 === 0 ? day.slice(0, 1) : ""}{" "}
+                {/* Show only first letter every other day */}
               </div>
             ))}
           </div>
-          
+
           {/* Month Labels */}
           <div className="flex mb-2 text-xs text-muted-foreground/70 font-medium h-6">
             <div className="w-8" /> {/* Spacer for weekday labels */}
             <div className="flex-1 relative">
               {MONTHS.map((month, i) => {
-                const firstDayOfMonth = new Date(new Date().getFullYear(), i, 1);
+                const firstDayOfMonth = new Date(
+                  new Date().getFullYear(),
+                  i,
+                  1
+                );
                 const weekOfYear = getWeek(firstDayOfMonth);
                 const position = ((weekOfYear - 1) / 53) * 100;
-                
+
                 return (
                   <div
                     key={month}
                     className="absolute text-muted-foreground/70 hover:text-muted-foreground/90 transition-colors"
                     style={{
                       left: `${position}%`,
-                      transform: 'translateX(-50%)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500
+                      transform: "translateX(-50%)",
+                      fontSize: "0.75rem",
+                      fontWeight: 500,
                     }}
                   >
                     {month.slice(0, 3)}
@@ -361,15 +371,19 @@ const PremiumAnalytics = ({ habits }) => {
                       startOfYear(new Date()),
                       colIndex * 7 + rowIndex
                     );
-                    
-                    const weekData = heatmapData.find(week =>
-                      week.some(day =>
-                        format(day.date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd')
+
+                    const weekData = heatmapData.find((week) =>
+                      week.some(
+                        (day) =>
+                          format(day.date, "yyyy-MM-dd") ===
+                          format(currentDate, "yyyy-MM-dd")
                       )
                     );
-                    
-                    const dayData = weekData?.find(day =>
-                      format(day.date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd')
+
+                    const dayData = weekData?.find(
+                      (day) =>
+                        format(day.date, "yyyy-MM-dd") ===
+                        format(currentDate, "yyyy-MM-dd")
                     );
 
                     return (
@@ -381,12 +395,12 @@ const PremiumAnalytics = ({ habits }) => {
                           delay: (colIndex * 7 + rowIndex) * 0.0005,
                           type: "spring",
                           stiffness: 500,
-                          damping: 30
+                          damping: 30,
                         }}
                         className="w-[16px] h-[16px]"
                         style={{
                           gridRow: rowIndex + 1,
-                          gridColumn: colIndex + 1
+                          gridColumn: colIndex + 1,
                         }}
                       >
                         <HeatmapCell
@@ -410,11 +424,16 @@ const PremiumAnalytics = ({ habits }) => {
                   key={level}
                   className={cn(
                     "w-[16px] h-[16px] rounded-sm transition-colors duration-200",
-                    level === 0 && "bg-primary/5 dark:bg-primary/10 hover:bg-primary/10",
-                    level === 1 && "bg-primary/20 dark:bg-primary/30 hover:bg-primary/25",
-                    level === 2 && "bg-primary/40 dark:bg-primary/50 hover:bg-primary/45",
-                    level === 3 && "bg-primary/60 dark:bg-primary/70 hover:bg-primary/65",
-                    level === 4 && "bg-primary/80 dark:bg-primary hover:bg-primary/85"
+                    level === 0 &&
+                      "bg-primary/5 dark:bg-primary/10 hover:bg-primary/10",
+                    level === 1 &&
+                      "bg-primary/20 dark:bg-primary/30 hover:bg-primary/25",
+                    level === 2 &&
+                      "bg-primary/40 dark:bg-primary/50 hover:bg-primary/45",
+                    level === 3 &&
+                      "bg-primary/60 dark:bg-primary/70 hover:bg-primary/65",
+                    level === 4 &&
+                      "bg-primary/80 dark:bg-primary hover:bg-primary/85"
                   )}
                 />
               ))}
@@ -429,6 +448,7 @@ const PremiumAnalytics = ({ habits }) => {
 
 export default function AnalyticsDashboard() {
   const { habits, calculateProgress } = useHabitStore();
+  const { isPro } = useHabitStore();
   const [timeRange, setTimeRange] = useState("30");
 
   // Utility functions for data calculations
@@ -996,7 +1016,147 @@ export default function AnalyticsDashboard() {
           </ScrollArea>
         </TabsContent>
       </Tabs>
-      <PremiumAnalytics habits={habits} />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative mt-8 rounded-2xl overflow-hidden border border-purple-500/20 shadow-2xl"
+      >
+        {/* Premium Content */}
+        <div
+          className={cn(
+            "transition-all duration-500",
+            !isPro && "filter blur-[2px] scale-[0.99]"
+          )}
+        >
+          <PremiumAnalytics habits={habits} />
+          <AdvancedAnalyticsDashboard habits={habits} />
+        </div>
+
+        {/* Premium Overlay - Only show for non-pro users */}
+        {!isPro && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="absolute inset-0 backdrop-blur-[8px]"
+          >
+            {/* Multi-layered gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/50 to-background/90" />
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-500/10 via-transparent to-transparent" />
+
+            {/* Glass effect card */}
+            <motion.div
+              className="relative h-full flex flex-col items-center justify-center p-12 text-center"
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
+            >
+              {/* Premium Icon */}
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
+                className="relative mb-8"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl blur-xl opacity-50" />
+                <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center relative shadow-xl ring-1 ring-white/20">
+                  <Sparkles className="h-10 w-10 text-white" />
+                </div>
+              </motion.div>
+
+              {/* Title and Description */}
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="max-w-2xl mb-12"
+              >
+                <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent mb-4">
+                  Unlock Advanced Analytics
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                  Get deeper insights into your habits with our premium
+                  analytics suite. Track trends, visualize progress, and achieve
+                  your goals faster.
+                </p>
+              </motion.div>
+
+              {/* Features Grid */}
+              <motion.div
+                className="flex flex-col items-center gap-8 mb-12"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {[
+                    {
+                      icon: ChartBar,
+                      text: "Detailed Insights",
+                      color: "from-purple-500 to-pink-500",
+                    },
+                    {
+                      icon: TrendingUp,
+                      text: "Progress Tracking",
+                      color: "from-pink-500 to-rose-500",
+                    },
+                    {
+                      icon: CalendarIcon,
+                      text: "Historical Data",
+                      color: "from-blue-500 to-cyan-500",
+                    },
+                    {
+                      icon: Download,
+                      text: "Export Reports",
+                      color: "from-emerald-500 to-teal-500",
+                    },
+                  ].map((feature, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.7 + i * 0.1 }}
+                      className="flex flex-col items-center gap-3 group"
+                    >
+                      <div className="relative">
+                        <div
+                          className={`absolute inset-0 bg-gradient-to-br ${feature.color} blur-lg opacity-0 group-hover:opacity-50 transition-opacity duration-500`}
+                        />
+                        <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center relative ring-1 ring-white/10 group-hover:ring-white/20 transition-all duration-500">
+                          <feature.icon className="h-6 w-6 text-primary group-hover:scale-110 transition-transform duration-500" />
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors duration-500">
+                        {feature.text}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* CTA Button */}
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 1.1 }}
+                >
+                  <Button
+                    onClick={() => router.push("/profile/billing")}
+                    className="relative group px-8 py-6 rounded-xl overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 transition-transform duration-500 group-hover:scale-[1.02]" />
+                    <div className="relative flex items-center text-white text-lg font-medium">
+                      Upgrade to Pro
+                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-500" />
+                    </div>
+                  </Button>
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </motion.div>
     </motion.div>
   );
 }

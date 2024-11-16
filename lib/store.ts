@@ -90,6 +90,16 @@ const PRICING_PLANS = {
   },
 } as const;
 
+interface PaymentHistoryItem {
+  id: string;
+  date: string;
+  amount: string;
+  status: "paid" | "pending" | "failed";
+  invoice: string;
+  planName: string;
+  planType: "monthly" | "yearly";
+}
+
 interface BillingState {
   subscriptionDetails: {
     plan: string;
@@ -98,14 +108,7 @@ interface BillingState {
     amount: string;
     period: string;
   };
-  paymentHistory: Array<{
-    id: number;
-    date: string;
-    amount: string;
-    status: string;
-    invoice: string;
-    planName: string;
-  }>;
+  paymentHistory: PaymentHistoryItem[];
   paymentMethod: {
     last4: string;
     expiryDate: string;
@@ -142,6 +145,7 @@ interface BillingState {
     status: string;
     type: "subscription" | "cancellation";
   }) => void;
+  getInvoiceNumber: () => string;
   upgradeSubscription: () => void;
   cancelSubscription: () => void;
   isUpgradeDialogOpen: boolean;
@@ -359,7 +363,7 @@ const getInitialHabitsCount = () => {
 
 export const useBillingStore = create<BillingState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       subscriptionDetails: {
         plan: "Pro",
         status: "active",
@@ -367,24 +371,7 @@ export const useBillingStore = create<BillingState>()(
         amount: "$9.99",
         period: "monthly",
       },
-      paymentHistory: [
-        {
-          id: 1,
-          date: "Nov 1, 2023",
-          amount: "$9.99",
-          status: "paid",
-          invoice: "#INV-2023-001",
-          planName: "Monthly Pro",
-        },
-        {
-          id: 2,
-          date: "Oct 1, 2023",
-          amount: "$9.99",
-          status: "paid",
-          invoice: "#INV-2023-002",
-          planName: "Monthly Pro",
-        },
-      ],
+      paymentHistory: [],
       paymentMethod: {
         last4: "4242",
         expiryDate: "12/24",
@@ -415,30 +402,29 @@ export const useBillingStore = create<BillingState>()(
             },
           },
         })),
-      addPaymentHistory: (payment) =>
-        set((state) => {
-          const plan = state.pricingPlans[payment.planType];
-          const amount = payment.type === "cancellation" ? 0 : plan.price;
+      getInvoiceNumber: () => {
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 1000);
+        return `INV-${timestamp}-${random}`;
+      },
+      addPaymentHistory: (payment) => {
+        const { isYearly, pricingPlans } = get();
+        const plan = isYearly ? pricingPlans.yearly : pricingPlans.monthly;
 
-          return {
-            paymentHistory: [
-              {
-                id: Math.random().toString(36).substr(2, 9),
-                date: new Date().toLocaleDateString(),
-                amount: `$${amount.toFixed(2)}`,
-                status: payment.status,
-                invoice: `#INV-${new Date().getFullYear()}-${String(
-                  state.paymentHistory.length + 1
-                ).padStart(3, "0")}`,
-                planName:
-                  payment.type === "cancellation"
-                    ? "Subscription Cancelled"
-                    : plan.name,
-              },
-              ...state.paymentHistory,
-            ],
-          };
-        }),
+        const newPayment: PaymentHistoryItem = {
+          id: crypto.randomUUID(),
+          date: new Date().toISOString(),
+          amount: `$${plan.price}`,
+          status: payment.status === "cancelled" ? "failed" : "paid",
+          invoice: get().getInvoiceNumber(),
+          planName: plan.name,
+          planType: payment.planType,
+        };
+
+        set((state) => ({
+          paymentHistory: [newPayment, ...state.paymentHistory],
+        }));
+      },
       upgradeSubscription: () =>
         set((state) => {
           const planType = state.isYearly ? "yearly" : "monthly";
