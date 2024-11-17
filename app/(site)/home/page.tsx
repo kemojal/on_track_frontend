@@ -246,7 +246,7 @@ export default function Component() {
             variants={itemVariants}
             className="bg-white/40 dark:bg-gray-900/40 rounded-2xl shadow-xl border border-gray-200/30 dark:border-gray-800/30 overflow-hidden backdrop-blur-xl min-h-[600px]"
           >
-            <div className="grid grid-cols-[220px_repeat(15,minmax(45px,1fr))] border-b border-gray-200/30 dark:border-gray-800/30">
+            <div className="grid grid-cols-[300px_repeat(15,minmax(45px,1fr))] border-b border-gray-200/30 dark:border-gray-800/30">
               <div className="px-4 py-3 font-semibold flex items-center gap-2 truncate">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 truncate">
                   HABITS
@@ -262,7 +262,7 @@ export default function Component() {
                 return (
                   <motion.div
                     key={i}
-                    className={`px-2 py-3 text-center border-l border-gray-200/30 dark:border-gray-800/30 relative ${
+                    className={`px-0 py-3 text-center border-l border-gray-200/30 dark:border-gray-800/30 relative ${
                       isToday ? "bg-violet-50/30 dark:bg-violet-900/10" : ""
                     }`}
                     whileHover={{ backgroundColor: "rgba(139, 92, 246, 0.05)" }}
@@ -285,7 +285,7 @@ export default function Component() {
               })}
             </div>
             <ScrollArea className="max-h-[calc(100vh-300px)]">
-              <div className="grid grid-cols-[220px_repeat(15,minmax(45px,1fr))]">
+              <div className="grid grid-cols-[300px_repeat(15,minmax(45px,1fr))]">
                 <AnimatePresence>
                   {habits.map((habit) => (
                     <motion.div
@@ -448,7 +448,7 @@ export default function Component() {
                         return (
                           <motion.button
                             key={i}
-                            className={`border-l border-b border-gray-200/30 dark:border-gray-800/30 p-2 relative group transition-all duration-300 ${
+                            className={`border-l border-b border-gray-200/30 dark:border-gray-800/30 p-0 relative group transition-all duration-300 ${
                               isCompleted
                                 ? "bg-violet-50/30 dark:bg-violet-900/10"
                                 : ""
@@ -460,7 +460,7 @@ export default function Component() {
                             whileTap={{ scale: 0.95 }}
                           >
                             <motion.div
-                              className={`absolute inset-1.5 rounded-lg transition-all duration-300 ${
+                              className={`absolute inset-[1px]  transition-all duration-300 ${
                                 isCompleted
                                   ? `bg-gradient-to-br ${habit.color} shadow-sm ring-1 ring-white/50 dark:ring-gray-800/50`
                                   : "scale-90"
@@ -479,7 +479,7 @@ export default function Component() {
                               }}
                             />
                             <motion.div
-                              className={`absolute inset-1.5 bg-gray-100/80 dark:bg-gray-800/50 rounded-lg transition-all duration-300 ${
+                              className={`absolute inset-[1px] bg-gray-100/80 dark:bg-gray-800/50  transition-all duration-300 ${
                                 !isCompleted && "group-hover:opacity-100"
                               } opacity-0 ring-1 ring-violet-200 dark:ring-violet-800/30`}
                             />

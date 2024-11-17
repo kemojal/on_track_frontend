@@ -446,8 +446,72 @@ const PremiumAnalytics = ({ habits }) => {
   );
 };
 
+function StatsCard({
+  title,
+  value,
+  description,
+  icon,
+  trend,
+}: {
+  title: string;
+  value: string;
+  description: string;
+  icon: React.ReactNode;
+  trend?: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="overflow-hidden backdrop-blur-sm bg-gradient-to-br from-background/50 to-background/30 border border-border/50">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <div className="text-primary/80">{icon}</div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{value}</div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-muted-foreground">{description}</p>
+            {trend && (
+              <span className="text-xs font-medium text-emerald-500 flex items-center gap-1">
+                <ArrowRight className="w-3 h-3" />
+                {trend}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function AnalyticsDashboard() {
-  const { habits, calculateProgress } = useHabitStore();
+  const [view, setView] = useState<"daily" | "weekly" | "monthly">("daily");
+  const habits = useHabitStore((state) => state.habits);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalMinutes = habits.reduce(
+      (acc, habit) => acc + (habit.timeSpent || 0),
+      0
+    );
+    const totalSessions = habits.reduce(
+      (acc, habit) => acc + (habit.sessions || 0),
+      0
+    );
+    const avgDailyMinutes = Math.round(totalMinutes / 7);
+
+    return {
+      totalMinutes,
+      totalSessions,
+      avgDailyMinutes,
+      activeHabits: habits.length,
+    };
+  }, [habits]);
+
+  const { habits: habitsData, calculateProgress } = useHabitStore();
   const { isPro } = useHabitStore();
   const [timeRange, setTimeRange] = useState("30");
 
@@ -482,8 +546,9 @@ export default function AnalyticsDashboard() {
 
     return last30Days.map((date) => ({
       date,
-      completed: habits.filter((habit) => habit.completedDates.includes(date))
-        .length,
+      completed: habitsData.filter((habit) =>
+        habit.completedDates.includes(date)
+      ).length,
     }));
   };
 
@@ -497,42 +562,42 @@ export default function AnalyticsDashboard() {
     return weeks.map((week) => ({
       week,
       completionRate:
-        habits?.reduce((acc, habit) => {
+        habitsData?.reduce((acc, habit) => {
           const weekRate = calculateCompletionRate(
             habit.completedDates.filter((date) => date >= week),
             7
           );
           return acc + weekRate;
-        }, 0) / habits.length,
+        }, 0) / habitsData.length,
     }));
   };
 
   const getPieData = () => {
-    return habits.map((habit) => ({
+    return habitsData.map((habit) => ({
       name: habit.name,
       value: calculateCompletionRate(habit.completedDates, parseInt(timeRange)),
     }));
   };
 
   // Metrics calculations
-  const totalCompletions = habits?.reduce(
+  const totalCompletions = habitsData?.reduce(
     (acc, habit) => acc + habit.completedDates.length,
     0
   );
 
   const averageCompletionRate =
-    habits?.reduce(
+    habitsData?.reduce(
       (acc, habit) =>
         acc +
         calculateCompletionRate(habit.completedDates, parseInt(timeRange)),
       0
-    ) / habits.length;
+    ) / habitsData.length;
 
   const bestStreak = Math.max(
-    ...habits.map((habit) => calculateStreak(habit.completedDates))
+    ...habitsData.map((habit) => calculateStreak(habit.completedDates))
   );
 
-  const mostConsistentHabit = habits?.reduce((prev, current) => {
+  const mostConsistentHabit = habitsData?.reduce((prev, current) => {
     const prevRate = calculateCompletionRate(
       prev.completedDates,
       parseInt(timeRange)
@@ -585,7 +650,7 @@ export default function AnalyticsDashboard() {
             value: totalCompletions,
             icon: Target,
             description: "Across all habits",
-            sparklineData: habits.map((h) => h.completedDates.length),
+            sparklineData: habitsData.map((h) => h.completedDates.length),
           },
           {
             title: "Average Completion Rate",
@@ -599,7 +664,9 @@ export default function AnalyticsDashboard() {
             value: `${bestStreak} days`,
             icon: Award,
             description: "Current record",
-            sparklineData: habits.map((h) => calculateStreak(h.completedDates)),
+            sparklineData: habitsData.map((h) =>
+              calculateStreak(h.completedDates)
+            ),
           },
           {
             title: "Most Consistent",
@@ -696,7 +763,7 @@ export default function AnalyticsDashboard() {
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={habits.map((habit) => ({
+                      data={habitsData.map((habit) => ({
                         name: habit.name,
                         rate: calculateCompletionRate(
                           habit.completedDates,
@@ -706,7 +773,7 @@ export default function AnalyticsDashboard() {
                       layout="vertical"
                     >
                       <defs>
-                        {habits.map((_, index) => (
+                        {habitsData.map((_, index) => (
                           <linearGradient
                             key={`gradient-${index}`}
                             id={`barGradient-${index}`}
@@ -757,7 +824,7 @@ export default function AnalyticsDashboard() {
                         radius={[0, 4, 4, 0]}
                         animationDuration={1500}
                       >
-                        {habits.map((_, index) => (
+                        {habitsData.map((_, index) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={`url(#barGradient-${index})`}
@@ -785,33 +852,6 @@ export default function AnalyticsDashboard() {
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <defs>
-                        {habits.map((_, index) => (
-                          <linearGradient
-                            key={`pieGradient-${index}`}
-                            id={`pieGradient-${index}`}
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop
-                              offset="0%"
-                              stopColor={
-                                CHART_COLORS[index % CHART_COLORS.length]
-                              }
-                              stopOpacity={0.8}
-                            />
-                            <stop
-                              offset="100%"
-                              stopColor={
-                                CHART_COLORS[(index + 1) % CHART_COLORS.length]
-                              }
-                              stopOpacity={0.8}
-                            />
-                          </linearGradient>
-                        ))}
-                      </defs>
                       <Pie
                         data={getPieData()}
                         dataKey="value"
@@ -827,7 +867,7 @@ export default function AnalyticsDashboard() {
                         {getPieData().map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={`url(#pieGradient-${index})`}
+                            fill={entry.color || `hsl(${index * 45}, 70%, 50%)`}
                             className="transition-opacity duration-200 hover:opacity-90"
                           />
                         ))}
@@ -972,7 +1012,7 @@ export default function AnalyticsDashboard() {
         <TabsContent value="habits" className="space-y-4">
           <ScrollArea className="h-[600px] pr-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {habits.map((habit) => (
+              {habitsData.map((habit) => (
                 <Card
                   key={habit.id}
                   className="backdrop-blur-lg bg-white/50 dark:bg-gray-800/50 hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
@@ -1029,8 +1069,8 @@ export default function AnalyticsDashboard() {
             !isPro && "filter blur-[2px] scale-[0.99]"
           )}
         >
-          <PremiumAnalytics habits={habits} />
-          <AdvancedAnalyticsDashboard habits={habits} />
+          <PremiumAnalytics habits={habitsData} />
+          <AdvancedAnalyticsDashboard habits={habitsData} />
         </div>
 
         {/* Premium Overlay - Only show for non-pro users */}
