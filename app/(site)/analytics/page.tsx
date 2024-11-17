@@ -31,6 +31,10 @@ import {
   ChartBar,
   Download,
   ArrowRight,
+  TrendingDown,
+  ArrowDownRight,
+  Info,
+  Zap,
 } from "lucide-react";
 import {
   Card,
@@ -68,6 +72,11 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import AdvancedAnalyticsDashboard from "@/components/AdvancedAnalyticsDashboard";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 // Define chart colors using CSS variables
 const CHART_COLORS = [
@@ -724,6 +733,233 @@ export default function AnalyticsDashboard() {
         ))}
       </motion.div>
 
+      {/* Habit Correlations Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <Card className="col-span-1 lg:col-span-2 overflow-hidden backdrop-blur-xl bg-gradient-to-br from-background/50 via-background/30 to-background/10 border border-border/50 shadow-xl">
+          <CardHeader className="border-b border-border/10 pb-8">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary/90 to-primary/60 bg-clip-text text-transparent">
+                    Habit Correlations
+                  </CardTitle>
+                  <HoverCard>
+                    <HoverCardTrigger>
+                      <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">About Correlations</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Discover how your habits influence each other. Strong
+                          positive correlations suggest habits that work well
+                          together, while negative correlations may indicate
+                          competing habits.
+                        </p>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                </div>
+                <CardDescription className="text-base flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  AI-Powered insights into your habit relationships
+                </CardDescription>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-8">
+              {/* Correlation Matrix */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="relative overflow-hidden rounded-xl border border-border/50 backdrop-blur-xl bg-gradient-to-br from-background/30 via-background/20 to-background/10"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
+                <div className="relative overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border/50">
+                        <th className="p-4 text-left font-medium text-muted-foreground">
+                          Habit
+                        </th>
+                        {habitsData.map((habit) => (
+                          <th
+                            key={habit.id}
+                            className="p-4 text-center font-medium text-muted-foreground"
+                          >
+                            <div className="truncate max-w-[100px]">
+                              {habit.name}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {habitsData.map((habit1) => (
+                        <tr
+                          key={habit1.id}
+                          className="border-b border-border/50 last:border-0"
+                        >
+                          <td className="p-4 font-medium truncate max-w-[150px]">
+                            {habit1.name}
+                          </td>
+                          {habitsData.map((habit2) => {
+                            const correlation = calculateHabitCorrelation(
+                              habit1,
+                              habit2
+                            );
+                            const correlationStrength = Math.abs(correlation);
+                            const isPositive = correlation > 0;
+
+                            return (
+                              <td key={habit2.id} className="p-4">
+                                {habit1 !== habit2 ? (
+                                  <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="flex flex-col items-center justify-center gap-2"
+                                  >
+                                    <div
+                                      className={cn(
+                                        "w-14 h-14 rounded-2xl flex items-center justify-center text-xs font-medium transition-all duration-300 hover:scale-105 cursor-pointer",
+                                        isPositive
+                                          ? "bg-emerald-500/10 hover:bg-emerald-500/20"
+                                          : "bg-red-500/10 hover:bg-red-500/20",
+                                        correlationStrength > 0.7 && "ring-2",
+                                        isPositive
+                                          ? "text-emerald-500 ring-emerald-500/30"
+                                          : "text-red-500 ring-red-500/30"
+                                      )}
+                                    >
+                                      {(correlation * 100).toFixed(0)}%
+                                    </div>
+                                    <span
+                                      className={cn(
+                                        "text-[10px] font-medium transition-colors duration-200",
+                                        correlationStrength > 0.7
+                                          ? "text-primary"
+                                          : "text-muted-foreground"
+                                      )}
+                                    >
+                                      {correlationStrength > 0.7
+                                        ? "Strong"
+                                        : correlationStrength > 0.4
+                                        ? "Moderate"
+                                        : "Weak"}
+                                    </span>
+                                  </motion.div>
+                                ) : (
+                                  <div className="w-14 h-14 mx-auto rounded-2xl bg-primary/5 ring-1 ring-primary/10" />
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+
+              {/* Insights */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300">
+                    <CardHeader>
+                      <CardTitle className="text-base text-emerald-500 flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                          <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        Positive Correlations
+                        <span className="text-xs font-normal text-muted-foreground ml-auto">
+                          Habits that enhance each other
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {getTopCorrelations(habitsData, true).map(
+                        (correlation, index) => (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.1 }}
+                            key={index}
+                            className="flex items-center justify-between text-sm p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10"
+                          >
+                            <span className="font-medium">
+                              {correlation.habit1} + {correlation.habit2}
+                            </span>
+                            <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                              <ArrowUpRight className="w-3 h-3" />+
+                              {(correlation.value * 100).toFixed(0)}%
+                            </span>
+                          </motion.div>
+                        )
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <Card className="bg-gradient-to-br from-red-500/5 to-red-500/10 border-red-500/20 hover:shadow-lg hover:shadow-red-500/5 transition-all duration-300">
+                    <CardHeader>
+                      <CardTitle className="text-base text-red-500 flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+                          <TrendingDown className="w-4 h-4 text-red-500" />
+                        </div>
+                        Negative Correlations
+                        <span className="text-xs font-normal text-muted-foreground ml-auto">
+                          Habits that may conflict
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {getTopCorrelations(habitsData, false).map(
+                        (correlation, index) => (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.1 }}
+                            key={index}
+                            className="flex items-center justify-between text-sm p-3 rounded-xl bg-red-500/5 border border-red-500/10"
+                          >
+                            <span className="font-medium">
+                              {correlation.habit1} vs {correlation.habit2}
+                            </span>
+                            <span className="text-red-500 font-semibold flex items-center gap-1">
+                              <ArrowDownRight className="w-3 h-3" />
+                              {(correlation.value * 100).toFixed(0)}%
+                            </span>
+                          </motion.div>
+                        )
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Detailed Analytics */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="bg-white/50 backdrop-blur-lg dark:bg-gray-800/50">
@@ -1199,4 +1435,59 @@ export default function AnalyticsDashboard() {
       </motion.div>
     </motion.div>
   );
+}
+
+function calculateHabitCorrelation(habit1, habit2) {
+  // Get all unique dates from both habits
+  const allDates = new Set([
+    ...habit1.completedDates,
+    ...habit2.completedDates,
+  ]);
+  const dateArray = Array.from(allDates).sort();
+
+  // Create binary arrays for each habit (1 if completed, 0 if not)
+  const habit1Array = dateArray.map((date) =>
+    habit1.completedDates.includes(date) ? 1 : 0
+  );
+  const habit2Array = dateArray.map((date) =>
+    habit2.completedDates.includes(date) ? 1 : 0
+  );
+
+  // Calculate correlation coefficient
+  const n = dateArray.length;
+  const sum1 = habit1Array.reduce((a, b) => a + b, 0);
+  const sum2 = habit2Array.reduce((a, b) => a + b, 0);
+  const sum1Sq = habit1Array.reduce((a, b) => a + b * b, 0);
+  const sum2Sq = habit2Array.reduce((a, b) => a + b * b, 0);
+  const pSum = habit1Array.reduce((a, b, i) => a + b * habit2Array[i], 0);
+
+  const numerator = n * pSum - sum1 * sum2;
+  const denominator = Math.sqrt(
+    (n * sum1Sq - sum1 * sum1) * (n * sum2Sq - sum2 * sum2)
+  );
+
+  return denominator === 0 ? 0 : numerator / denominator;
+}
+
+function getTopCorrelations(habits, positive = true, limit = 3) {
+  const correlations = [];
+
+  // Calculate correlations between all habit pairs
+  for (let i = 0; i < habits.length; i++) {
+    for (let j = i + 1; j < habits.length; j++) {
+      const correlation = calculateHabitCorrelation(habits[i], habits[j]);
+      if ((positive && correlation > 0) || (!positive && correlation < 0)) {
+        correlations.push({
+          habit1: habits[i].name,
+          habit2: habits[j].name,
+          value: correlation,
+        });
+      }
+    }
+  }
+
+  // Sort by absolute correlation value and get top N
+  return correlations
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+    .slice(0, limit);
 }
