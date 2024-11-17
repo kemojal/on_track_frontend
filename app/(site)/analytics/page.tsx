@@ -35,6 +35,8 @@ import {
   ArrowDownRight,
   Info,
   Zap,
+  Star,
+  Trophy,
 } from "lucide-react";
 import {
   Card,
@@ -618,6 +620,83 @@ export default function AnalyticsDashboard() {
     return prevRate > currentRate ? prev : current;
   });
 
+  // success patterns
+  function identifySuccessPatterns(habits) {
+    console.log("Input habits:", habits); // Debug log
+
+    if (!habits || habits.length < 2) {
+      console.log("Not enough habits for patterns");
+      return [];
+    }
+
+    const patterns = [];
+
+    // Find days where multiple habits were completed together
+    const allDates = new Set(habits.flatMap((h) => h.completedDates || []));
+    console.log("All dates:", allDates); // Debug log
+
+    const dateArray = Array.from(allDates).sort();
+
+    // Create a map of dates to completed habits
+    const dateHabitMap = {};
+    dateArray.forEach((date) => {
+      dateHabitMap[date] = habits
+        .filter((h) => h.completedDates && h.completedDates.includes(date))
+        .map((h) => h.name);
+    });
+
+    console.log("Date-Habit Map:", dateHabitMap); // Debug log
+
+    // Find frequent combinations (patterns)
+    const combinations = {};
+    Object.values(dateHabitMap).forEach((habitList) => {
+      if (habitList.length >= 2) {
+        const key = habitList.sort().join(" + ");
+        combinations[key] = (combinations[key] || 0) + 1;
+      }
+    });
+
+    console.log("Combinations:", combinations); // Debug log
+
+    // Calculate success metrics
+    Object.entries(combinations).forEach(([combo, count]) => {
+      const habits = combo.split(" + ");
+      const totalDays = dateArray.length;
+      const successRate = totalDays > 0 ? (count / totalDays) * 100 : 0;
+
+      if (successRate >= 10) {
+        // Lowered threshold for testing
+        patterns.push({
+          habits,
+          occurrences: count,
+          successRate,
+          streak: calculateLongestStreak(dateHabitMap, habits),
+        });
+      }
+    });
+
+    console.log("Final patterns:", patterns); // Debug log
+    return patterns.sort((a, b) => b.successRate - a.successRate).slice(0, 3);
+  }
+
+  function calculateLongestStreak(dateHabitMap, habits) {
+    let maxStreak = 0;
+    let currentStreak = 0;
+
+    Object.entries(dateHabitMap)
+      .sort()
+      .forEach(([_, completedHabits]) => {
+        if (habits.every((h) => completedHabits.includes(h))) {
+          currentStreak++;
+          maxStreak = Math.max(maxStreak, currentStreak);
+        } else {
+          currentStreak = 0;
+        }
+      });
+
+    return maxStreak;
+  }
+
   return (
     <motion.div
       className="space-y-6 p-6 pb-16"
@@ -733,232 +812,371 @@ export default function AnalyticsDashboard() {
         ))}
       </motion.div>
 
-      {/* Habit Correlations Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <Card className="col-span-1 lg:col-span-2 overflow-hidden backdrop-blur-xl bg-gradient-to-br from-background/50 via-background/30 to-background/10 border border-border/50 shadow-xl">
-          <CardHeader className="border-b border-border/10 pb-8">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary/90 to-primary/60 bg-clip-text text-transparent">
-                    Habit Correlations
-                  </CardTitle>
-                  <HoverCard>
-                    <HoverCardTrigger>
-                      <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-80">
-                      <div className="space-y-2">
-                        <h4 className="font-medium">About Correlations</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Discover how your habits influence each other. Strong
-                          positive correlations suggest habits that work well
-                          together, while negative correlations may indicate
-                          competing habits.
-                        </p>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Success Patterns */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+        >
+          <Card className="bg-gradient-to-br from-primary/5 via-background/50 to-background/30 border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg font-semibold text-primary flex items-center gap-2">
+                      <Trophy className="w-5 h-5" />
+                      Success Patterns
+                    </CardTitle>
+                    <HoverCard>
+                      <HoverCardTrigger>
+                        <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-80">
+                        <div className="space-y-2">
+                          <h4 className="font-medium">
+                            About Success Patterns
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            These are your most effective habit combinations.
+                            When performed together, these habits show the
+                            highest completion rates and longest streaks.
+                          </p>
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
+                  </div>
+                  <CardDescription>
+                    Winning combinations that drive your success
+                  </CardDescription>
                 </div>
-                <CardDescription className="text-base flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-primary" />
-                  AI-Powered insights into your habit relationships
-                </CardDescription>
+                <Star className="w-5 h-5 text-primary" />
               </div>
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-primary" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="space-y-8">
-              {/* Correlation Matrix */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="relative overflow-hidden rounded-xl border border-border/50 backdrop-blur-xl bg-gradient-to-br from-background/30 via-background/20 to-background/10"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
-                <div className="relative overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/50">
-                        <th className="p-4 text-left font-medium text-muted-foreground">
-                          Habit
-                        </th>
-                        {habitsData.map((habit) => (
-                          <th
-                            key={habit.id}
-                            className="p-4 text-center font-medium text-muted-foreground"
-                          >
-                            <div className="truncate max-w-[100px]">
-                              {habit.name}
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {habitsData.map((habit1) => (
-                        <tr
-                          key={habit1.id}
-                          className="border-b border-border/50 last:border-0"
-                        >
-                          <td className="p-4 font-medium truncate max-w-[150px]">
-                            {habit1.name}
-                          </td>
-                          {habitsData.map((habit2) => {
-                            const correlation = calculateHabitCorrelation(
-                              habit1,
-                              habit2
-                            );
-                            const correlationStrength = Math.abs(correlation);
-                            const isPositive = correlation > 0;
-
-                            return (
-                              <td key={habit2.id} className="p-4">
-                                {habit1 !== habit2 ? (
-                                  <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="flex flex-col items-center justify-center gap-2"
-                                  >
-                                    <div
-                                      className={cn(
-                                        "w-14 h-14 rounded-2xl flex items-center justify-center text-xs font-medium transition-all duration-300 hover:scale-105 cursor-pointer",
-                                        isPositive
-                                          ? "bg-emerald-500/10 hover:bg-emerald-500/20"
-                                          : "bg-red-500/10 hover:bg-red-500/20",
-                                        correlationStrength > 0.7 && "ring-2",
-                                        isPositive
-                                          ? "text-emerald-500 ring-emerald-500/30"
-                                          : "text-red-500 ring-red-500/30"
-                                      )}
-                                    >
-                                      {(correlation * 100).toFixed(0)}%
-                                    </div>
-                                    <span
-                                      className={cn(
-                                        "text-[10px] font-medium transition-colors duration-200",
-                                        correlationStrength > 0.7
-                                          ? "text-primary"
-                                          : "text-muted-foreground"
-                                      )}
-                                    >
-                                      {correlationStrength > 0.7
-                                        ? "Strong"
-                                        : correlationStrength > 0.4
-                                        ? "Moderate"
-                                        : "Weak"}
-                                    </span>
-                                  </motion.div>
-                                ) : (
-                                  <div className="w-14 h-14 mx-auto rounded-2xl bg-primary/5 ring-1 ring-primary/10" />
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </motion.div>
-
-              {/* Insights */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </CardHeader>
+            {/* <CardContent>
+            <div className="space-y-4">
+              {identifySuccessPatterns(habitsData).map((pattern, index) => (
                 <motion.div
+                  key={index}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  className="relative p-4 rounded-xl bg-primary/5 border border-primary/10 overflow-hidden"
                 >
-                  <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300">
-                    <CardHeader>
-                      <CardTitle className="text-base text-emerald-500 flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                          <TrendingUp className="w-4 h-4 text-emerald-500" />
+                  <div
+                    className="absolute top-0 left-0 h-full bg-primary/5"
+                    style={{ width: `${pattern.successRate}%` }}
+                  />
+                  <div className="relative space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-sm">
+                        {pattern.habits.join(" + ")}
+                      </div>
+                      <div className="text-sm text-primary font-semibold">
+                        {pattern.successRate.toFixed(1)}% Success
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Target className="w-3 h-3" />
+                        {pattern.occurrences} times
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Best Streak: {pattern.streak} days
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </CardContent> */}
+            <CardContent>
+              <div className="space-y-4">
+                {(() => {
+                  const patterns = identifySuccessPatterns(habitsData);
+                  return patterns.length > 0 ? (
+                    patterns.map((pattern, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                        className="relative p-4 rounded-xl bg-primary/5 border border-primary/10 overflow-hidden"
+                      >
+                        <div
+                          className="absolute top-0 left-0 h-full bg-primary/5"
+                          style={{ width: `${pattern.successRate}%` }}
+                        />
+                        <div className="relative space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium text-sm">
+                              {pattern.habits.join(" + ")}
+                            </div>
+                            <div className="text-sm text-primary font-semibold">
+                              {pattern.successRate.toFixed(1)}% Success
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Target className="w-3 h-3" />
+                              {pattern.occurrences} times
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Sparkles className="w-3 h-3" />
+                              Best Streak: {pattern.streak} days
+                            </div>
+                          </div>
                         </div>
-                        Positive Correlations
-                        <span className="text-xs font-normal text-muted-foreground ml-auto">
-                          Habits that enhance each other
-                        </span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {getTopCorrelations(habitsData, true).map(
-                        (correlation, index) => (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.1 }}
-                            key={index}
-                            className="flex items-center justify-between text-sm p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10"
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <div className="flex justify-center mb-2">
+                        <Trophy className="w-8 h-8 text-primary/20" />
+                      </div>
+                      <p className="text-sm font-medium mb-1">
+                        No Success Patterns Yet
+                      </p>
+                      <p className="text-xs">
+                        Complete multiple habits together consistently to
+                        discover your winning combinations.
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Habit Correlations Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Card className="col-span-1 lg:col-span-2 overflow-hidden backdrop-blur-xl bg-gradient-to-br from-background/50 via-background/30 to-background/10 border border-border/50 shadow-xl">
+            <CardHeader className="border-b border-border/10 pb-8">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary/90 to-primary/60 bg-clip-text text-transparent">
+                      Habit Correlations
+                    </CardTitle>
+                    <HoverCard>
+                      <HoverCardTrigger>
+                        <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-80">
+                        <div className="space-y-2">
+                          <h4 className="font-medium">About Correlations</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Discover how your habits influence each other.
+                            Strong positive correlations suggest habits that
+                            work well together, while negative correlations may
+                            indicate competing habits.
+                          </p>
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
+                  </div>
+                  <CardDescription className="text-base flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-primary" />
+                    AI-Powered insights into your habit relationships
+                  </CardDescription>
+                </div>
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Activity className="w-5 h-5 text-primary" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-8">
+                {/* Correlation Matrix */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="relative overflow-hidden rounded-xl border border-border/50 backdrop-blur-xl bg-gradient-to-br from-background/30 via-background/20 to-background/10"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
+                  <div className="relative overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border/50">
+                          <th className="p-4 text-left font-medium text-muted-foreground">
+                            Habit
+                          </th>
+                          {habitsData.map((habit) => (
+                            <th
+                              key={habit.id}
+                              className="p-4 text-center font-medium text-muted-foreground"
+                            >
+                              <div className="truncate max-w-[100px]">
+                                {habit.name}
+                              </div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {habitsData.map((habit1) => (
+                          <tr
+                            key={habit1.id}
+                            className="border-b border-border/50 last:border-0"
                           >
-                            <span className="font-medium">
-                              {correlation.habit1} + {correlation.habit2}
-                            </span>
-                            <span className="text-emerald-500 font-semibold flex items-center gap-1">
-                              <ArrowUpRight className="w-3 h-3" />+
-                              {(correlation.value * 100).toFixed(0)}%
-                            </span>
-                          </motion.div>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
+                            <td className="p-4 font-medium truncate max-w-[150px]">
+                              {habit1.name}
+                            </td>
+                            {habitsData.map((habit2) => {
+                              const correlation = calculateHabitCorrelation(
+                                habit1,
+                                habit2
+                              );
+                              const correlationStrength = Math.abs(correlation);
+                              const isPositive = correlation > 0;
+
+                              return (
+                                <td key={habit2.id} className="p-4">
+                                  {habit1 !== habit2 ? (
+                                    <motion.div
+                                      initial={{ scale: 0.9, opacity: 0 }}
+                                      animate={{ scale: 1, opacity: 1 }}
+                                      transition={{ duration: 0.3 }}
+                                      className="flex flex-col items-center justify-center gap-2"
+                                    >
+                                      <div
+                                        className={cn(
+                                          "w-14 h-14 rounded-2xl flex items-center justify-center text-xs font-medium transition-all duration-300 hover:scale-105 cursor-pointer",
+                                          isPositive
+                                            ? "bg-emerald-500/10 hover:bg-emerald-500/20"
+                                            : "bg-red-500/10 hover:bg-red-500/20",
+                                          correlationStrength > 0.7 && "ring-2",
+                                          isPositive
+                                            ? "text-emerald-500 ring-emerald-500/30"
+                                            : "text-red-500 ring-red-500/30"
+                                        )}
+                                      >
+                                        {(correlation * 100).toFixed(0)}%
+                                      </div>
+                                      <span
+                                        className={cn(
+                                          "text-[10px] font-medium transition-colors duration-200",
+                                          correlationStrength > 0.7
+                                            ? "text-primary"
+                                            : "text-muted-foreground"
+                                        )}
+                                      >
+                                        {correlationStrength > 0.7
+                                          ? "Strong"
+                                          : correlationStrength > 0.4
+                                          ? "Moderate"
+                                          : "Weak"}
+                                      </span>
+                                    </motion.div>
+                                  ) : (
+                                    <div className="w-14 h-14 mx-auto rounded-2xl bg-primary/5 ring-1 ring-primary/10" />
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                >
-                  <Card className="bg-gradient-to-br from-red-500/5 to-red-500/10 border-red-500/20 hover:shadow-lg hover:shadow-red-500/5 transition-all duration-300">
-                    <CardHeader>
-                      <CardTitle className="text-base text-red-500 flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
-                          <TrendingDown className="w-4 h-4 text-red-500" />
-                        </div>
-                        Negative Correlations
-                        <span className="text-xs font-normal text-muted-foreground ml-auto">
-                          Habits that may conflict
-                        </span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {getTopCorrelations(habitsData, false).map(
-                        (correlation, index) => (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.1 }}
-                            key={index}
-                            className="flex items-center justify-between text-sm p-3 rounded-xl bg-red-500/5 border border-red-500/10"
-                          >
-                            <span className="font-medium">
-                              {correlation.habit1} vs {correlation.habit2}
-                            </span>
-                            <span className="text-red-500 font-semibold flex items-center gap-1">
-                              <ArrowDownRight className="w-3 h-3" />
-                              {(correlation.value * 100).toFixed(0)}%
-                            </span>
-                          </motion.div>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                {/* Insights */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                  >
+                    <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300">
+                      <CardHeader>
+                        <CardTitle className="text-base text-emerald-500 flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4 text-emerald-500" />
+                          </div>
+                          Positive Correlations
+                          <span className="text-xs font-normal text-muted-foreground ml-auto">
+                            Habits that enhance each other
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {getTopCorrelations(habitsData, true).map(
+                          (correlation, index) => (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.1 }}
+                              key={index}
+                              className="flex items-center justify-between text-sm p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10"
+                            >
+                              <span className="font-medium">
+                                {correlation.habit1} + {correlation.habit2}
+                              </span>
+                              <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                                <ArrowUpRight className="w-3 h-3" />+
+                                {(correlation.value * 100).toFixed(0)}%
+                              </span>
+                            </motion.div>
+                          )
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                  >
+                    <Card className="bg-gradient-to-br from-red-500/5 to-red-500/10 border-red-500/20 hover:shadow-lg hover:shadow-red-500/5 transition-all duration-300">
+                      <CardHeader>
+                        <CardTitle className="text-base text-red-500 flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+                            <TrendingDown className="w-4 h-4 text-red-500" />
+                          </div>
+                          Negative Correlations
+                          <span className="text-xs font-normal text-muted-foreground ml-auto">
+                            Habits that may conflict
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {getTopCorrelations(habitsData, false).map(
+                          (correlation, index) => (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.1 }}
+                              key={index}
+                              className="flex items-center justify-between text-sm p-3 rounded-xl bg-red-500/5 border border-red-500/10"
+                            >
+                              <span className="font-medium">
+                                {correlation.habit1} vs {correlation.habit2}
+                              </span>
+                              <span className="text-red-500 font-semibold flex items-center gap-1">
+                                <ArrowDownRight className="w-3 h-3" />
+                                {(correlation.value * 100).toFixed(0)}%
+                              </span>
+                            </motion.div>
+                          )
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
 
       {/* Detailed Analytics */}
       <Tabs defaultValue="overview" className="space-y-4">
